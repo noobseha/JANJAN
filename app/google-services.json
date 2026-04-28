@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "925578045622",
+    "project_id": "janjan-11fbf",
+    "storage_bucket": "janjan-11fbf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:925578045622:android:2fdf141e564e74da5e5e17",
+        "android_client_info": {
+          "package_name": "com.gachon.janjan"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDL92jmr2-pzvuMWYn0XZXp1kAXJhcTIkU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
