@@ -23,8 +23,7 @@ class LandingActivity : AppCompatActivity() {
 
         // 사업자용 버튼 누르면 로그인 화면으로
         binding.btnBusiness.setOnClickListener {
-            val intent = Intent(this, LoginActivity::class.java)
-            intent.putExtra("userType", "business")
+            val intent = Intent(this, BusinessLoginActivity::class.java)
             startActivity(intent)
         }
     }

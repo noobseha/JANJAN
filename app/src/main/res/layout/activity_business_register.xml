@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFFFFF">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="32dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="사업자용 회원가입"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="#000000"
+            android:layout_marginBottom="32dp"/>
+
+        <EditText
+            android:id="@+id/etEmail"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:hint="이메일"
+            android:inputType="textEmailAddress"
+            android:background="@drawable/edit_text_bg"
+            android:paddingHorizontal="16dp"
+            android:layout_marginBottom="12dp"/>
+
+        <EditText
+            android:id="@+id/etPassword"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:hint="비밀번호"
+            android:inputType="textPassword"
+            android:background="@drawable/edit_text_bg"
+            android:paddingHorizontal="16dp"
+            android:layout_marginBottom="12dp"/>
+
+        <Button
+            android:id="@+id/btnStoreName"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="가게 검색"
+            android:textSize="16sp"
+            android:backgroundTint="#E0E0E0"
+            android:textColor="#333333"
+            android:layout_marginBottom="8dp"/>
+
+        <EditText
+            android:id="@+id/etSelectedStoreName"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:hint="가게 이름"
+            android:background="@drawable/edit_text_bg"
+            android:paddingHorizontal="16dp"
+            android:layout_marginBottom="12dp"
+            android:focusable="false"
+            android:clickable="false"/>
+
+        <EditText
+            android:id="@+id/etStorePhone"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:hint="가게 전화번호"
+            android:background="@drawable/edit_text_bg"
+            android:paddingHorizontal="16dp"
+            android:layout_marginBottom="12dp"
+            android:focusable="false"
+            android:clickable="false"/>
+
+        <EditText
+            android:id="@+id/etStoreAddress"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:hint="가게 주소"
+            android:background="@drawable/edit_text_bg"
+            android:paddingHorizontal="16dp"
+            android:layout_marginBottom="32dp"
+            android:focusable="false"
+            android:clickable="false"/>
+
+        <Button
+            android:id="@+id/btnRegister"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="가입하기"
+            android:textSize="16sp"
+            android:backgroundTint="#4ECBAC"/>
+
+    </LinearLayout>
+</ScrollView>
