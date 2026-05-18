@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.gachon.janjan" />
+                  <option name="mobileSdkAppId" value="1:604336686969:android:214aa23ad5461aac6211a8" />
+                  <option name="projectId" value="janjan-c064f" />
+                  <option name="projectNumber" value="604336686969" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
