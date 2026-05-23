@@ -33,7 +33,7 @@
             android:layout_height="wrap_content"
             android:text="주문하기"
             android:textColor="#333333"
-            android:textSize="18sp"
+            android:textSize="20sp"
             android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
