@@ -29,6 +29,8 @@
         <activity android:name=".ProfileSettingActivity"/>
         <activity android:name=".AppSettingActivity"/>
         <activity android:name=".ChangePasswordActivity"/>
+        <activity android:name=".MenuAddActivity"/>
+        <activity android:name=".MenuEditActivity"/>
 
     </application>
 

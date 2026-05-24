@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F5F5F5">
+
+    <!-- 헤더 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="메뉴판"
+            android:textSize="20sp"
+            android:textStyle="bold"/>
+
+        <Button
+            android:id="@+id/btn_add_menu"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="+ 메뉴 추가"
+            android:backgroundTint="#4DB6AC"
+            android:textSize="13sp"/>
+
+    </LinearLayout>
+
+    <!-- 카테고리 필터 -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:layout_marginBottom="8dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_all"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="전체"
+                android:backgroundTint="#4DB6AC"
+                android:layout_marginEnd="8dp"
+                android:textSize="13sp"/>
+
+            <Button
+                android:id="@+id/btn_soju"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="주류"
+                android:backgroundTint="#E0E0E0"
+                android:textColor="#333333"
+                android:layout_marginEnd="8dp"
+                android:textSize="13sp"/>
+
+            <Button
+                android:id="@+id/btn_food"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="안주"
+                android:backgroundTint="#E0E0E0"
+                android:textColor="#333333"
+                android:layout_marginEnd="8dp"
+                android:textSize="13sp"/>
+
+            <Button
+                android:id="@+id/btn_drink"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="음료"
+                android:backgroundTint="#E0E0E0"
+                android:textColor="#333333"
+                android:textSize="13sp"/>
+
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- 메뉴 목록 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_menu"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="16dp"/>
+
+</LinearLayout>
