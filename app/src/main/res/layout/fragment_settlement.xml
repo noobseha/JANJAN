@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://tools.android.com/tools"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF">
+    android:background="#FFFFFF"
+    tools:context="com.gachon.janjan.ui.settlement.SettlementFragment">
 
     <ImageButton
         android:id="@+id/btnBack"
@@ -128,7 +129,7 @@
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toTopOf="parent"
                         app:shapeAppearanceOverlay="@style/CircleShapeAppearance"
-                        tools:src="@drawable/ic_default" />
+                        android:src="@drawable/ic_default" />
 
                     <TextView
                         android:id="@+id/tvMyName"
@@ -202,7 +203,7 @@
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toTopOf="parent"
                         app:shapeAppearanceOverlay="@style/CircleShapeAppearance"
-                        tools:src="@drawable/ic_default" />
+                        android:src="@drawable/ic_default" />
 
                     <TextView
                         android:id="@+id/tvName1"
@@ -214,7 +215,7 @@
                         android:textStyle="bold"
                         app:layout_constraintStart_toEndOf="@id/ivProfile1"
                         app:layout_constraintTop_toTopOf="@id/ivProfile1"
-                        tools:text="맥주마스터" />
+                        android:text="맥주마스터" />
 
                     <TextView
                         android:id="@+id/tvDrinkCount1"
@@ -225,7 +226,7 @@
                         android:textSize="12sp"
                         app:layout_constraintStart_toStartOf="@id/tvName1"
                         app:layout_constraintTop_toBottomOf="@id/tvName1"
-                        tools:text="8잔" />
+                        android:text="8잔" />
 
                     <TextView
                         android:id="@+id/tvStatus1"
@@ -238,7 +239,7 @@
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintTop_toTopOf="parent"
-                        tools:text="완료" />
+                        android:text="완료" />
 
                     <TextView
                         android:id="@+id/tvPrice1"
@@ -251,7 +252,7 @@
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintEnd_toStartOf="@id/tvStatus1"
                         app:layout_constraintTop_toTopOf="parent"
-                        tools:text="41,000원" />
+                        android:text="41,000원" />
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
                 <View android:id="@+id/divider1" android:layout_width="match_parent" android:layout_height="1dp" android:background="#E6F7F2" />
@@ -271,7 +272,7 @@
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toTopOf="parent"
                         app:shapeAppearanceOverlay="@style/CircleShapeAppearance"
-                        tools:src="@drawable/ic_default" />
+                        android:src="@drawable/ic_default" />
 
                     <TextView
                         android:id="@+id/tvName2"
@@ -283,7 +284,7 @@
                         android:textStyle="bold"
                         app:layout_constraintStart_toEndOf="@id/ivProfile2"
                         app:layout_constraintTop_toTopOf="@id/ivProfile2"
-                        tools:text="소주킹" />
+                        android:text="소주킹" />
 
                     <TextView
                         android:id="@+id/tvDrinkCount2"
@@ -294,7 +295,7 @@
                         android:textSize="12sp"
                         app:layout_constraintStart_toStartOf="@id/tvName2"
                         app:layout_constraintTop_toBottomOf="@id/tvName2"
-                        tools:text="6잔" />
+                        android:text="6잔" />
 
                     <TextView
                         android:id="@+id/tvStatus2"
@@ -306,7 +307,7 @@
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintTop_toTopOf="parent"
-                        tools:text="미완료" />
+                        android:text="미완료" />
 
                     <TextView
                         android:id="@+id/tvPrice2"
@@ -319,7 +320,7 @@
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintEnd_toStartOf="@id/tvStatus2"
                         app:layout_constraintTop_toTopOf="parent"
-                        tools:text="33,000원" />
+                        android:text="33,000원" />
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
                 <View android:id="@+id/divider2" android:layout_width="match_parent" android:layout_height="1dp" android:background="#E6F7F2" />
@@ -339,7 +340,7 @@
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toTopOf="parent"
                         app:shapeAppearanceOverlay="@style/CircleShapeAppearance"
-                        tools:src="@drawable/ic_default" />
+                        android:src="@drawable/ic_default" />
 
                     <TextView
                         android:id="@+id/tvName3"
@@ -351,7 +352,7 @@
                         android:textStyle="bold"
                         app:layout_constraintStart_toEndOf="@id/ivProfile3"
                         app:layout_constraintTop_toTopOf="@id/ivProfile3"
-                        tools:text="츄츄이" />
+                        android:text="츄츄이" />
 
                     <TextView
                         android:id="@+id/tvDrinkCount3"
@@ -362,7 +363,7 @@
                         android:textSize="12sp"
                         app:layout_constraintStart_toStartOf="@id/tvName3"
                         app:layout_constraintTop_toBottomOf="@id/tvName3"
-                        tools:text="3잔" />
+                        android:text="3잔" />
 
                     <TextView
                         android:id="@+id/tvStatus3"
@@ -374,7 +375,7 @@
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintTop_toTopOf="parent"
-                        tools:text="미완료" />
+                        android:text="미완료" />
 
                     <TextView
                         android:id="@+id/tvPrice3"
@@ -387,7 +388,7 @@
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintEnd_toStartOf="@id/tvStatus3"
                         app:layout_constraintTop_toTopOf="parent"
-                        tools:text="18,000원" />
+                        android:text="18,000원" />
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
                 <View android:id="@+id/divider3" android:layout_width="match_parent" android:layout_height="1dp" android:background="#E6F7F2" />

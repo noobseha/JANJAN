@@ -60,14 +60,6 @@
                     android:paddingVertical="32dp"
                     android:paddingHorizontal="24dp">
 
-                    <ImageView
-                        android:id="@+id/btnRefresh"
-                        android:layout_width="28dp"
-                        android:layout_height="28dp"
-                        android:src="@drawable/ic_refresh" app:tint="#FFFFFF"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintTop_toTopOf="parent" />
 
                     <TextView
                         android:id="@+id/tvStoreAndTable"
@@ -77,7 +69,6 @@
                         android:textColor="#FFFFFF"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        app:layout_constraintBottom_toBottomOf="@id/btnRefresh"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintTop_toTopOf="parent"
                         app:layout_constraintVertical_bias="1.0" />

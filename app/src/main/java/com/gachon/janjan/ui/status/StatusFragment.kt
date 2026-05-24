@@ -1,5 +1,9 @@
 package com.gachon.janjan.ui.status
 
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import android.graphics.Color
 import android.os.Bundle
 import android.view.View
@@ -22,9 +26,7 @@ class StatusFragment : Fragment(R.layout.fragment_status) {
 
         setupObservers()
         setupClickListeners()
-
-        val currentUserId = "user_123" // 👈 유령 변수 탈출용 임시 선언!
-        viewModel.refreshData(sessionId = "session_001", userId = currentUserId)
+        startAutoRefresh()
     }
 
     private fun setupObservers() {
@@ -51,7 +53,7 @@ class StatusFragment : Fragment(R.layout.fragment_status) {
             // 2. 0부터 3까지 (총 4개 자리) 반복하면서 데이터 채우기
             for (i in 0..3) {
                 if (i < friends.size) {
-                    // 🔥 데이터가 있는 자리: 카드 보여주고 데이터 세팅
+                    // 데이터가 있는 자리: 카드 보여주고 데이터 세팅
                     cards[i].visibility = View.VISIBLE
 
                     val friend = friends[i]
@@ -84,12 +86,8 @@ class StatusFragment : Fragment(R.layout.fragment_status) {
     }
 
     private fun setupClickListeners() {
-        // 새로고침 버튼
-        binding.btnRefresh.setOnClickListener {
-
-            // 🔥 여기도 임시 ID!!!
-            val currentUserId = "user_123"
-            viewModel.refreshData("session_001", currentUserId)
+        binding.btnActionOrder.setOnClickListener {
+            findNavController().popBackStack()
         }
 
         // 🔥 추가 주문하기를 누르면 다시 주문(Order) 창으로 뒤로가기 처리
@@ -99,7 +97,18 @@ class StatusFragment : Fragment(R.layout.fragment_status) {
 
         // 정산하기 버튼 (나중에 settlement 화면 네비게이션 액션 ID 입력하면 됨)
         binding.btnSettlement.setOnClickListener {
-            // findNavController().navigate(R.id.action_status_to_settlement)
+            binding.btnSettlement.isEnabled = false
+            viewModel.createSettlementFromCurrentSession { settlementId ->
+                binding.btnSettlement.isEnabled = true
+                if (settlementId != null) {
+                    val bundle = Bundle().apply {
+                        putString("settlementId", settlementId)
+                    }
+                    findNavController().navigate(R.id.action_status_to_settlement, bundle)
+                } else {
+                    android.widget.Toast.makeText(requireContext(), "정산 생성 실패. 다시 시도해주세요.", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
         }
 
         // 최근 술자리 전체보기 버튼
@@ -107,8 +116,18 @@ class StatusFragment : Fragment(R.layout.fragment_status) {
             // TODO: 전체 내역 페이지나 다이얼로그 띄우기
         }
     }
+    private fun startAutoRefresh() {
+        //Status 화면 꺼지면 알아서 루프를 멈춤
+        viewLifecycleOwner.lifecycleScope.launch {
+            while (isActive) { // 화면이 살아있는 동안 무한 반복
+                val currentUserId = "user_123" // TODO: 실제 유저 ID로 바꾸기
+                viewModel.refreshData("session_001", currentUserId)
 
-    override fun onDestroyView() {
+                delay(5000L) // 5000밀리초(5초) 대기 후 다시 위로 올라가서 실행
+            }
+        }
+    }
+        override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
     }

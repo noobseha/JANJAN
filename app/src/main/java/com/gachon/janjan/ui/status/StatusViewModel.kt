@@ -6,12 +6,19 @@ import androidx.lifecycle.ViewModel
 import com.gachon.janjan.data.model.ActiveFriend
 import com.gachon.janjan.data.model.RecentSession
 import com.gachon.janjan.data.model.SessionState
+import com.gachon.janjan.data.model.Settlement
+import com.gachon.janjan.data.model.SettlementParticipant
 import com.gachon.janjan.data.repository.StatusRepository
+import com.gachon.janjan.data.repository.SettlementRepository
 
 class StatusViewModel : ViewModel() {
 
     // 레포지토리 장착! (Firebase에서 데이터 가져오기 위함)
     private val repository = StatusRepository()
+    private val settlementRepository = SettlementRepository()
+
+    // 최근 로드된 세션 데이터를 저장하기 위한 임시 변수
+    private var lastSessionState: SessionState? = null
 
     // --- 상단 노란 박스용 LiveData ---
     private val _storeInfo = MutableLiveData<String>()
@@ -46,6 +53,7 @@ class StatusViewModel : ViewModel() {
         // 1. [상단 박스] 레포지토리를 통해 Firebase에서 진짜 데이터 가져오기
         repository.getSessionData(sessionId) { sessionData ->
             if (sessionData != null) {
+                lastSessionState = sessionData
                 calculateAndApply(sessionData, userId)
             }
         }
@@ -79,8 +87,8 @@ class StatusViewModel : ViewModel() {
         val me = sortedParticipants.getOrNull(myIndex) ?: return
 
         _userName.value = me.userName ?: ""
-        _mySojuCount.value = me.sojuCount
-        _myBeerCount.value = me.beerCount
+        _mySojuCount.value = me.sojuCupCount
+        _myBeerCount.value = me.beerCupCount
 
         // 색상 배정 (순서대로 빨주노초파보)
         val colorHex = when(myIndex) {
@@ -98,16 +106,90 @@ class StatusViewModel : ViewModel() {
         val headCount = sortedParticipants.size
         var myPrice = 0
 
+        val totalSojuCups = sortedParticipants.sumOf { it.sojuCupCount }
+        val totalBeerCups = sortedParticipants.sumOf { it.beerCupCount }
+
         if (headCount > 0) {
             myPrice += data.totalFoodPrice / headCount
         }
-        if (data.totalSojuCount > 0) {
-            myPrice += (data.totalSojuPrice * me.sojuCount) / data.totalSojuCount
+        if (totalSojuCups > 0) {
+            myPrice += (data.totalSojuPrice * me.sojuCupCount) / totalSojuCups
         }
-        if (data.totalBeerCount > 0) {
-            myPrice += (data.totalBeerPrice * me.beerCount) / data.totalBeerCount
+        if (totalBeerCups > 0) {
+            myPrice += (data.totalBeerPrice * me.beerCupCount) / totalBeerCups
         }
 
         _myExpectedPrice.value = myPrice
+    }
+
+    // 🔥 현재 활성화된 세션 데이터를 기반으로 정산 문서(Settlement) 생성 및 Firebase 업로드
+    fun createSettlementFromCurrentSession(onComplete: (String?) -> Unit) {
+        val session = lastSessionState ?: run {
+            onComplete(null)
+            return
+        }
+
+        val sortedParticipants = session.participants.sortedBy { it.joinedAt }
+        val headCount = sortedParticipants.size
+
+        val totalSojuCups = sortedParticipants.sumOf { it.sojuCupCount }
+        val totalBeerCups = sortedParticipants.sumOf { it.beerCupCount }
+
+        val settlementParticipants = sortedParticipants.map { participant ->
+            var myPrice = 0
+            if (headCount > 0) {
+                myPrice += session.totalFoodPrice / headCount
+            }
+            if (totalSojuCups > 0) {
+                myPrice += (session.totalSojuPrice * participant.sojuCupCount) / totalSojuCups
+            }
+            if (totalBeerCups > 0) {
+                myPrice += (session.totalBeerPrice * participant.beerCupCount) / totalBeerCups
+            }
+
+            SettlementParticipant(
+                userId = participant.userId,
+                userName = participant.userName,
+                mytotal = myPrice,
+                beerCupCount = participant.beerCupCount,
+                sojuCupCount = participant.sojuCupCount,
+                paidStatus = false
+            )
+        }
+
+        val totalPrice = session.totalFoodPrice + session.totalSojuPrice + session.totalBeerPrice
+
+        // 시간 정보 계산 (시작 시간, 정산 시점까지의 경과 시간, 참가자 수)
+        val firstJoinedAt = sortedParticipants.firstOrNull()?.joinedAt
+        val formattedTimeInfo = if (firstJoinedAt != null) {
+            val sdf = java.text.SimpleDateFormat("HH:mm", java.util.Locale.KOREA)
+            val startTimeStr = sdf.format(firstJoinedAt.toDate())
+
+            val startMillis = firstJoinedAt.toDate().time
+            val diffMillis = System.currentTimeMillis() - startMillis
+            val hours = diffMillis / (1000 * 60 * 60)
+            val minutes = (diffMillis % (1000 * 60 * 60)) / (1000 * 60)
+
+            val durationStr = if (hours > 0) {
+                "${hours}시간 ${minutes}분"
+            } else {
+                "${minutes}분"
+            }
+
+            "${startTimeStr} 시작 · ${durationStr} · ${headCount}명"
+        } else {
+            "시작 시간 정보 없음 · ${headCount}명"
+        }
+
+        val newSettlement = Settlement(
+            sessionId = session.sessionId,
+            storeName = session.storeName,
+            tableId = session.tableId,
+            totalPrice = totalPrice,
+            timeInfo = formattedTimeInfo,
+            participants = settlementParticipants
+        )
+
+        settlementRepository.createSettlement(newSettlement, onComplete)
     }
 }

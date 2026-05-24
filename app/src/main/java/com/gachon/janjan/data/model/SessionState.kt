@@ -1,5 +1,8 @@
 package com.gachon.janjan.data.model
 
+import com.google.firebase.Timestamp
+import kotlin.time.Instant
+
 // 현재 테이블(세션)의 실시간 상태를 통째로 담는 박스
 data class SessionState(
     val sessionId: String = "",
@@ -17,7 +20,7 @@ data class SessionState(
 data class Participant(
     val userId: String = "",
     val userName: String = "",
-    val sojuCount: Int = 0, // 내가 마신 소주 잔 수
-    val beerCount: Int = 0,  // 내가 마신 맥주 잔 수
-    val joinedAt: Long = 0L // 방에 들어온 시간 (이걸로 빨주노초파보 순서 결정!)
+    val sojuCupCount: Int = 0, // 내가 마신 소주 잔 수
+    val beerCupCount: Int = 0,  // 내가 마신 맥주 잔 수
+    val joinedAt: Timestamp = Timestamp.now()
 )

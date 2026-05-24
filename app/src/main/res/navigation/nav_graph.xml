@@ -18,5 +18,15 @@
         android:id="@+id/statusFragment"
         android:name="com.gachon.janjan.ui.status.StatusFragment"
         android:label="StatusFragment"
-        tools:layout="@layout/fragment_status" />
+        tools:layout="@layout/fragment_status">
+        <action
+            android:id="@+id/action_status_to_settlement"
+            app:destination="@id/settlementFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/settlementFragment"
+        android:name="com.gachon.janjan.ui.settlement.SettlementFragment"
+        android:label="SettlementFragment"
+        tools:layout="@layout/fragment_settlement" />
 </navigation>
