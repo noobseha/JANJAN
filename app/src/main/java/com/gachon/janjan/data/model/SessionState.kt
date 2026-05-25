@@ -5,6 +5,7 @@ data class SessionState(
     val sessionId: String = "",
     val storeName: String = "",
     val tableId: Int = 0,
+    val tableNumber: Int = 0,
     val totalFoodPrice: Int = 0, // 전체 안주 금액
     val totalSojuPrice: Int = 0, // 전체 소주 금액
     val totalBeerPrice: Int = 0, // 전체 맥주 금액
@@ -17,6 +18,7 @@ data class SessionState(
 data class Participant(
     val userId: String = "",
     val userName: String = "",
+    val glassColor: String? = null,
     val sojuCount: Int = 0, // 내가 마신 소주 잔 수
     val beerCount: Int = 0,  // 내가 마신 맥주 잔 수
     val joinedAt: Long = 0L // 방에 들어온 시간 (이걸로 빨주노초파보 순서 결정!)

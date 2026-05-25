@@ -35,19 +35,23 @@ class OrderViewModel : ViewModel() {
     val totalPrice: LiveData<Int> = _totalPrice
 
     // 🔥 3. loadData 하나로 깔끔하게 통합
-    fun loadData(storeId: Long, sessionId: String) {
+    private var currentSessionId: String = ""
+
+    fun loadData(sessionId: String) {
+        currentSessionId = sessionId
+
         // 세션 정보 불러오기
         repository.getSessionWithStoreDetails(sessionId) { session ->
             session?.let { _currentSession.value = it }
-        }
 
-        // 메뉴 리스트 불러오기
-        repository.getMenuItems(storeId) { items ->
-            if (items != null) {
-                // DB에서 가져온 데이터를 '원본 백업'에 먼저 저장!
-                allMenuItems = items
-                // 데이터를 다 가져왔으니 기본 카테고리(안주)로 화면 띄우기
-                filterByCategory("all")
+            // 메뉴 리스트 불러오기
+            repository.getMenuItems(session?.storeId) { items ->
+                if (items != null) {
+                    // DB에서 가져온 데이터를 '원본 백업'에 먼저 저장!
+                    allMenuItems = items
+                    // 데이터를 다 가져왔으니 기본 카테고리(안주)로 화면 띄우기
+                    filterByCategory("all")
+                }
             }
         }
     }
@@ -106,9 +110,13 @@ class OrderViewModel : ViewModel() {
     // 주문하기 버튼을 눌렀을 때 실행될 함수
     // OrderViewModel.kt 내부
 
-    fun submitOrder(userId: String) {
+    fun submitOrder(userId: String, sessionId: String = currentSessionId) {
         val cartItems = allMenuItems.filter { it.quantity > 0 }
         if (cartItems.isEmpty()) return
+        if (sessionId.isBlank()) {
+            _orderSuccessEvent.value = false
+            return
+        }
 
         val orderItems = cartItems.map { menu ->
             OrderItem(
@@ -120,11 +128,8 @@ class OrderViewModel : ViewModel() {
                 subtotal = menu.price * menu.quantity
             )
         }
-        // 🔥🔥지금은 임시 테스트용! 나중에 바꿔야 해
-        val currentSessionId = "session_001"
-
         val order = Order(
-            sessionId = currentSessionId,
+            sessionId = sessionId,
             userId = userId,
             items = orderItems
         )

@@ -1,24 +1,33 @@
 package com.gachon.janjan.ui.order
 
 import android.os.Bundle
+import android.widget.Toast
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.gachon.janjan.R
 import com.gachon.janjan.databinding.FragmentOrderBinding
+import com.gachon.janjan.domain.session.viewmodel.SessionViewModel
 import java.text.DecimalFormat
 import android.transition.Slide
 import android.transition.TransitionManager
 import android.view.Gravity
+import kotlinx.coroutines.launch
 
 class OrderFragment : Fragment(R.layout.fragment_order) {
     private var _binding: FragmentOrderBinding? = null
     private val binding get() = _binding!!
     private val viewModel: OrderViewModel by viewModels()
+    private val sessionViewModel: SessionViewModel by activityViewModels()
+    private var activeSessionId: String = ""
 
     // 🔥 1. 현재 선택된 카테고리를 추적하는 변수 (반드시 클래스 바로 아래에 선언!)
     private var currentSelectedCategory = "all"
@@ -51,8 +60,8 @@ class OrderFragment : Fragment(R.layout.fragment_order) {
         // DB에서 가져온 세션/가게 정보 반영
         viewModel.currentSession.observe(viewLifecycleOwner) { session ->
             session?.let {
-                binding.tvStoreName.text = it.storeName ?: "가게 정보 없음"
-                binding.tvTableName.text = "테이블 ${it.tableId}"
+                binding.tvStoreName.text = it.storeName.ifBlank { "가게 정보 없음" }
+                binding.tvTableName.text = "테이블 ${it.tableNumber.takeIf { number -> number > 0 } ?: it.tableId}"
                 binding.tvStatus.text = if (!it.status.isNullOrEmpty()) it.status else "연결됨"
 
                 if (it.imageUrl.isNotEmpty()) {
@@ -86,9 +95,10 @@ class OrderFragment : Fragment(R.layout.fragment_order) {
 
         // 주문하기 버튼 클릭 후 status 화면으로 이동
         binding.btnOrder.setOnClickListener {
-            // 🔥🔥 임시 Id임. 바꿔야함.
-            val currentUserId = "user_123"
-            viewModel.submitOrder(currentUserId)
+            viewModel.submitOrder(
+                userId = sessionViewModel.currentUserId,
+                sessionId = activeSessionId
+            )
         }
 
         // 🔥 필터 아이콘 클릭 이벤트
@@ -118,19 +128,53 @@ class OrderFragment : Fragment(R.layout.fragment_order) {
         // 🔥 앱 처음 켰을 때 초기 UI 상태 (모두 회색)
         resetCategoryUI()
 
-        // 3. 데이터 로드
-        viewModel.loadData(storeId = 1L, sessionId = "session_001")
+        observeActiveSession()
 
         // 🔥 뷰모델이 주문 성공했다고 신호를 보내면, 그때 화면 이동!
         viewModel.orderSuccessEvent.observe(viewLifecycleOwner) { isSuccess ->
             if (isSuccess == true) {
                 // 주문 성공 토스트
-                android.widget.Toast.makeText(requireContext(), "주문이 완료되었습니다!", android.widget.Toast.LENGTH_SHORT).show()
-                findNavController().navigate(R.id.action_order_to_status)
+                Toast.makeText(requireContext(), "주문이 완료되었습니다!", Toast.LENGTH_SHORT).show()
+                sessionViewModel.loadOrderSummaries(activeSessionId)
+                val needsColorMapping = sessionViewModel.participants.value
+                    .firstOrNull { it.userId == sessionViewModel.currentUserId }
+                    ?.glassColor
+                    .isNullOrBlank()
+                if (needsColorMapping) {
+                    findNavController().navigate(
+                        R.id.glassColorFragment,
+                        Bundle().apply {
+                            putString("sessionId", activeSessionId)
+                            putBoolean("showDone", true)
+                        }
+                    )
+                } else {
+                    val returnedHome = findNavController().popBackStack(R.id.sessionHomeFragment, false)
+                    if (!returnedHome) {
+                        findNavController().navigate(R.id.sessionHomeFragment)
+                    }
+                }
                 viewModel.resetOrderEvent()
             } else if (isSuccess == false) {
-                android.widget.Toast.makeText(requireContext(), "주문에 실패했습니다. 다시 시도해주세요.", android.widget.Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "주문에 실패했습니다. 다시 시도해주세요.", Toast.LENGTH_SHORT).show()
                 viewModel.resetOrderEvent()
+            }
+        }
+    }
+
+    private fun observeActiveSession() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                sessionViewModel.activeSessionId.collect { sessionId ->
+                    val resolvedSessionId = sessionId.ifBlank {
+                        arguments?.getString("sessionId").orEmpty()
+                    }
+                    if (resolvedSessionId.isBlank() || resolvedSessionId == activeSessionId) {
+                        return@collect
+                    }
+                    activeSessionId = resolvedSessionId
+                    viewModel.loadData(resolvedSessionId)
+                }
             }
         }
     }

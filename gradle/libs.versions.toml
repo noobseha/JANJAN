@@ -1,5 +1,6 @@
 [versions]
 agp = "9.2.1"
+kotlin = "2.3.21"
 coreKtx = "1.18.0"
 junit = "4.13.2"
 junitVersion = "1.3.0"
@@ -25,4 +26,4 @@ androidx-navigation-ui-ktx = { group = "androidx.navigation", name = "navigation
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

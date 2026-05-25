@@ -3,11 +3,18 @@ package com.gachon.janjan.ui.status
 import android.graphics.Color
 import android.os.Bundle
 import android.view.View
+import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import com.gachon.janjan.R
 import com.gachon.janjan.databinding.FragmentStatusBinding
+import com.gachon.janjan.domain.session.viewmodel.SessionViewModel
+import kotlinx.coroutines.launch
 import java.text.DecimalFormat
 
 class StatusFragment : Fragment(R.layout.fragment_status) {
@@ -15,6 +22,8 @@ class StatusFragment : Fragment(R.layout.fragment_status) {
     private var _binding: FragmentStatusBinding? = null
     private val binding get() = _binding!!
     private val viewModel: StatusViewModel by viewModels()
+    private val sessionViewModel: SessionViewModel by activityViewModels()
+    private var activeSessionId: String = ""
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -22,9 +31,7 @@ class StatusFragment : Fragment(R.layout.fragment_status) {
 
         setupObservers()
         setupClickListeners()
-
-        val currentUserId = "user_123" // 👈 유령 변수 탈출용 임시 선언!
-        viewModel.refreshData(sessionId = "session_001", userId = currentUserId)
+        observeActiveSession()
     }
 
     private fun setupObservers() {
@@ -37,11 +44,14 @@ class StatusFragment : Fragment(R.layout.fragment_status) {
             binding.tvTotalPrice.text = "${DecimalFormat("#,###").format(price)}원"
         }
         viewModel.myCardColor.observe(viewLifecycleOwner) { colorHex ->
-            binding.cardStatus.setCardBackgroundColor(Color.parseColor(colorHex))
+            val parsedColor = runCatching { Color.parseColor(colorHex) }.getOrDefault(Color.parseColor("#5AC4AF"))
+            binding.cardStatus.setCardBackgroundColor(parsedColor)
         }
 
         // 술 먹고 있는 친구 목록 UI
         viewModel.activeFriends.observe(viewLifecycleOwner) { friends ->
+            binding.cardSocialSection.visibility = if (friends.isEmpty()) View.GONE else View.VISIBLE
+
             // 1. 다루기 쉽게 화면의 뷰들을 리스트로 묶어버림
             val cards = listOf(binding.cardFriend1, binding.cardFriend2, binding.cardFriend3, binding.cardFriend4)
             val nameViews = listOf(binding.tvName1, binding.tvName2, binding.tvName3, binding.tvName4)
@@ -59,7 +69,7 @@ class StatusFragment : Fragment(R.layout.fragment_status) {
                     infoViews[i].text = if (friend.isOnline) {
                         "${friend.storeName} · ${friend.drinkCount}잔"
                     } else {
-                        "오프라인 · 마지막 접속 1시간 전"
+                        "오프라인"
                     }
                     dotViews[i].visibility = if (friend.isOnline) View.VISIBLE else View.GONE
 
@@ -86,26 +96,69 @@ class StatusFragment : Fragment(R.layout.fragment_status) {
     private fun setupClickListeners() {
         // 새로고침 버튼
         binding.btnRefresh.setOnClickListener {
-
-            // 🔥 여기도 임시 ID!!!
-            val currentUserId = "user_123"
-            viewModel.refreshData("session_001", currentUserId)
+            refreshCurrentSession()
         }
 
         // 🔥 추가 주문하기를 누르면 다시 주문(Order) 창으로 뒤로가기 처리
         binding.btnActionOrder.setOnClickListener {
-            findNavController().popBackStack()
+            findNavController().navigate(
+                R.id.orderFragment,
+                Bundle().apply { putString("sessionId", activeSessionId) }
+            )
         }
 
-        // 정산하기 버튼 (나중에 settlement 화면 네비게이션 액션 ID 입력하면 됨)
+        binding.btnActionGlassMapping.setOnClickListener {
+            if (activeSessionId.isBlank()) return@setOnClickListener
+            findNavController().navigate(
+                R.id.glassColorFragment,
+                Bundle().apply {
+                    putString("sessionId", activeSessionId)
+                    putBoolean("showDone", false)
+                }
+            )
+        }
+
         binding.btnSettlement.setOnClickListener {
-            // findNavController().navigate(R.id.action_status_to_settlement)
+            if (activeSessionId.isBlank()) return@setOnClickListener
+            viewModel.startSettlement(activeSessionId) { success ->
+                if (success) {
+                    Toast.makeText(requireContext(), "정산이 시작되었습니다.", Toast.LENGTH_SHORT).show()
+                    refreshCurrentSession()
+                } else {
+                    Toast.makeText(requireContext(), "정산 시작에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
 
         // 최근 술자리 전체보기 버튼
         binding.tvRecentViewAll.setOnClickListener {
-            // TODO: 전체 내역 페이지나 다이얼로그 띄우기
+            findNavController().navigate(R.id.sessionHomeFragment)
         }
+    }
+
+    private fun observeActiveSession() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                sessionViewModel.activeSessionId.collect { sessionId ->
+                    val resolvedSessionId = sessionId.ifBlank {
+                        arguments?.getString("sessionId").orEmpty()
+                    }
+                    if (resolvedSessionId.isBlank() || resolvedSessionId == activeSessionId) {
+                        return@collect
+                    }
+                    activeSessionId = resolvedSessionId
+                    refreshCurrentSession()
+                }
+            }
+        }
+    }
+
+    private fun refreshCurrentSession() {
+        if (activeSessionId.isBlank()) return
+        viewModel.refreshData(
+            sessionId = activeSessionId,
+            userId = sessionViewModel.currentUserId
+        )
     }
 
     override fun onDestroyView() {

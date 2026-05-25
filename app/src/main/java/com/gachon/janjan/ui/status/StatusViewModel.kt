@@ -47,43 +47,51 @@ class StatusViewModel : ViewModel() {
         repository.getSessionData(sessionId) { sessionData ->
             if (sessionData != null) {
                 calculateAndApply(sessionData, userId)
+                _activeFriends.value = sessionData.participants
+                    .filter { it.userId != userId }
+                    .sortedByDescending { it.sojuCount + it.beerCount }
+                    .take(4)
+                    .map {
+                        ActiveFriend(
+                            userId = it.userId,
+                            name = it.userName.ifBlank { "참여자" },
+                            storeName = sessionData.storeName,
+                            drinkCount = it.sojuCount + it.beerCount,
+                            isOnline = true
+                        )
+                    }
+            } else {
+                _activeFriends.value = emptyList()
             }
         }
 
-        // 2. [친구 목록] 더미 데이터 세팅 (나중에 이것도 레포지토리로 뺄 예정)
-        val friendList = listOf(
-            ActiveFriend("user_111", "맥주마스터", "강남 이자카야", 5, true),
-            ActiveFriend("user_333", "소주요정", "건대 포차", 3, true),
-            ActiveFriend("user_222", "안주킬러", "홍대 맛집", 1, false),
-            ActiveFriend("user_444", "잠만보", "집", 0, true)
-        )
-        _activeFriends.value = friendList
+        // 2. [최근 술자리] 현재 세션을 제외한 내 참여 기록에서 가장 최근 세션 조회
+        repository.getRecentSession(userId, sessionId) { recentSession ->
+            _recentSession.value = recentSession
+        }
+    }
 
-        // 3. [최근 술자리] 더미 데이터 세팅 (나중에 레포지토리로 교체)
-        val pastSession = RecentSession(
-            sessionId = "session_000",
-            storeName = "홍대 포차",
-            date = "2026.01.28", // 어제 날짜로!
-            headCount = 4,
-            totalPrice = 34000
-        )
-        _recentSession.value = pastSession
+    fun startSettlement(sessionId: String, onComplete: (Boolean) -> Unit) {
+        repository.startSettlement(sessionId, onComplete)
     }
 
     // 🧮 정산 계산 및 색상 적용 로직
     private fun calculateAndApply(data: SessionState, myUserId: String) {
-        _storeInfo.value = "${data.storeName} · ${data.tableId}번 테이블"
+        val tableNumber = data.tableNumber.takeIf { it > 0 } ?: data.tableId
+        _storeInfo.value = "${data.storeName} · ${tableNumber}번 테이블"
 
         val sortedParticipants = data.participants.sortedBy { it.joinedAt }
         val myIndex = sortedParticipants.indexOfFirst { it.userId == myUserId }
-        val me = sortedParticipants.getOrNull(myIndex) ?: return
+        val me = sortedParticipants.getOrNull(myIndex)
+            ?: sortedParticipants.firstOrNull()
+            ?: return
 
-        _userName.value = me.userName ?: ""
+        _userName.value = me.userName
         _mySojuCount.value = me.sojuCount
         _myBeerCount.value = me.beerCount
 
         // 색상 배정 (순서대로 빨주노초파보)
-        val colorHex = when(myIndex) {
+        val colorHex = me.glassColor ?: when(myIndex) {
             0 -> "#FF5252"
             1 -> "#FF9800"
             2 -> "#FBC02D"
