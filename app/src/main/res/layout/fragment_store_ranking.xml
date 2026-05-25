@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#FFFFFF">
+
+    <!-- 전체/소주/맥주 필터 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:background="#E8F5F2"
+        android:layout_margin="12dp"
+        android:gravity="center">
+
+        <Button
+            android:id="@+id/btnAll"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:text="전체"
+            android:textSize="14sp"
+            android:background="@drawable/btn_filter_selected"/>
+
+        <Button
+            android:id="@+id/btnSoju"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:text="🍶 소주"
+            android:textSize="14sp"
+            android:background="@drawable/btn_filter_unselected"/>
+
+        <Button
+            android:id="@+id/btnBeer"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:text="🍺 맥주"
+            android:textSize="14sp"
+            android:background="@drawable/btn_filter_unselected"/>
+
+    </LinearLayout>
+
+    <!-- 검색창 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        android:paddingBottom="12dp">
+
+        <EditText
+            android:id="@+id/etSearch"
+            android:layout_width="0dp"
+            android:layout_height="52dp"
+            android:layout_weight="1"
+            android:hint="가게 이름을 검색하세요"
+            android:paddingHorizontal="16dp"
+            android:textSize="14sp"
+            android:background="#F5F5F5"
+            android:imeOptions="actionSearch"
+            android:inputType="text"/>
+
+        <ImageButton
+            android:id="@+id/btnSearch"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:layout_marginStart="8dp"
+            android:background="#4DB8A4"
+            android:src="@android:drawable/ic_menu_search"
+            android:tint="#FFFFFF"/>
+
+    </LinearLayout>
+
+    <!-- 검색 결과 목록 (가게 선택 전) -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvStores"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="12dp"
+        android:visibility="gone"/>
+
+    <!-- 선택된 가게 고정 카드 (가게 선택 후) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardSelectedStore"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginBottom="8dp"
+        android:visibility="gone"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="4dp"
+        xmlns:app="http://schemas.android.com/apk/res-auto">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:background="#E8F5F2">
+
+            <TextView
+                android:id="@+id/tvSelectedStoreName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="가게명"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#1A1A1A"/>
+
+            <TextView
+                android:id="@+id/tvSelectedStoreAddress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="주소"
+                android:textSize="13sp"
+                android:textColor="#666666"
+                android:layout_marginTop="4dp"/>
+
+        </LinearLayout>
+
+    </androidx.cardview.widget.CardView>
+
+    <!-- 가게별 랭킹 RecyclerView (가게 선택 후) -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvStoreRanking"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingHorizontal="12dp"
+        android:visibility="gone"/>
+
+    <!-- 빈 상태 -->
+    <LinearLayout
+        android:id="@+id/layoutEmpty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center">
+
+        <TextView
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:text="🔍"
+            android:textSize="36sp"
+            android:gravity="center"
+            android:background="#E8F5F2"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="가게 이름을 검색해주세요"
+            android:textSize="14sp"
+            android:textColor="#999999"
+            android:layout_marginTop="8dp"/>
+
+    </LinearLayout>
+
+</LinearLayout>
