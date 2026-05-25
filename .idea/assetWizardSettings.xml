@@ -23,7 +23,7 @@
                                 <PersistentState>
                                   <option name="values">
                                     <map>
-                                      <entry key="url" value="file:/$USER_HOME$/AppData/Local/Android/Sdk/icons/material/materialsymbolsoutlined/autorenew/outline_autorenew_24.xml" />
+                                      <entry key="url" value="file:/$USER_HOME$/AppData/Local/Android/Sdk/icons/material/materialicons/access_time/baseline_access_time_24.xml" />
                                     </map>
                                   </option>
                                 </PersistentState>
@@ -33,8 +33,8 @@
                         </option>
                         <option name="values">
                           <map>
-                            <entry key="outputName" value="ic_refresh" />
-                            <entry key="sourceFile" value="C:\Users\yhs20\AndroidStudioProjects\janjan\app\src\main\res\drawable\filter.svg" />
+                            <entry key="outputName" value="ic_time" />
+                            <entry key="sourceFile" value="C:\Users\yhs20\OneDrive - gachon.ac.kr\바탕 화면\logo_npay.svg" />
                           </map>
                         </option>
                       </PersistentState>

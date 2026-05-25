@@ -6,6 +6,9 @@ plugins {
 
 android {
     namespace = "com.gachon.janjan"
+    buildFeatures {
+        viewBinding = true
+    }
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -90,4 +93,8 @@ dependencies {
     implementation("androidx.fragment:fragment-ktx:1.6.2")
     //url로 사진 띄우는 기능
     implementation("com.github.bumptech.glide:glide:4.16.0")
+    //네비게이션
+    implementation("androidx.navigation:navigation-fragment-ktx:2.8.0")
+    implementation("androidx.navigation:navigation-ui-ktx:2.8.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

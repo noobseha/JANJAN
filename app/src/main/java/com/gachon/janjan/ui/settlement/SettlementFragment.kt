@@ -20,7 +20,8 @@ class SettlementFragment : Fragment(R.layout.fragment_settlement) {
     
     private val viewModel: SettlementViewModel by viewModels()
     private var settlementId: String? = null
-    private val currentUserId = "user_123" // TODO: 실제 인증된 유저 ID가 있는 경우 해당 ID로 연동
+    private val currentUserId: String
+        get() = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "anonymous"
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)

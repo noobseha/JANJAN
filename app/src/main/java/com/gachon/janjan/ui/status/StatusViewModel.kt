@@ -6,19 +6,23 @@ import androidx.lifecycle.ViewModel
 import com.gachon.janjan.data.model.ActiveFriend
 import com.gachon.janjan.data.model.RecentSession
 import com.gachon.janjan.data.model.SessionState
+import com.gachon.janjan.data.model.Settlement
+import com.gachon.janjan.data.model.SettlementParticipant
+import com.gachon.janjan.data.repository.SettlementRepository
 import com.gachon.janjan.data.repository.StatusRepository
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class StatusViewModel : ViewModel() {
-
-    // 레포지토리 장착! (Firebase에서 데이터 가져오기 위함)
     private val repository = StatusRepository()
+    private val settlementRepository = SettlementRepository()
+    private var lastSessionState: SessionState? = null
 
-    // --- 상단 노란 박스용 LiveData ---
     private val _storeInfo = MutableLiveData<String>()
     val storeInfo: LiveData<String> = _storeInfo
 
     private val _userName = MutableLiveData<String>()
-
     val userName: LiveData<String> = _userName
 
     private val _mySojuCount = MutableLiveData<Int>(0)
@@ -39,33 +43,32 @@ class StatusViewModel : ViewModel() {
     private val _recentSession = MutableLiveData<RecentSession?>()
     val recentSession: LiveData<RecentSession?> = _recentSession
 
-
-    // 🔄 새로고침 (데이터 다시 불러오기)
     fun refreshData(sessionId: String, userId: String) {
-
-        // 1. [상단 박스] 레포지토리를 통해 Firebase에서 진짜 데이터 가져오기
-        repository.getSessionData(sessionId) { sessionData ->
-            if (sessionData != null) {
-                calculateAndApply(sessionData, userId)
-                _activeFriends.value = sessionData.participants
-                    .filter { it.userId != userId }
-                    .sortedByDescending { it.sojuCount + it.beerCount }
-                    .take(4)
-                    .map {
-                        ActiveFriend(
-                            userId = it.userId,
-                            name = it.userName.ifBlank { "참여자" },
-                            storeName = sessionData.storeName,
-                            drinkCount = it.sojuCount + it.beerCount,
-                            isOnline = true
-                        )
-                    }
-            } else {
-                _activeFriends.value = emptyList()
+        repository.checkAndJoinSession(sessionId, userId) {
+            repository.getSessionData(sessionId) { sessionData ->
+                if (sessionData != null) {
+                    lastSessionState = sessionData
+                    calculateAndApply(sessionData, userId)
+                    _activeFriends.value = sessionData.participants
+                        .filter { it.userId != userId }
+                        .sortedByDescending { it.sojuCount + it.beerCount }
+                        .take(4)
+                        .map {
+                            ActiveFriend(
+                                userId = it.userId,
+                                name = it.userName.ifBlank { "참여자" },
+                                storeName = sessionData.storeName,
+                                drinkCount = it.sojuCount + it.beerCount,
+                                isOnline = true
+                            )
+                        }
+                } else {
+                    lastSessionState = null
+                    _activeFriends.value = emptyList()
+                }
             }
         }
 
-        // 2. [최근 술자리] 현재 세션을 제외한 내 참여 기록에서 가장 최근 세션 조회
         repository.getRecentSession(userId, sessionId) { recentSession ->
             _recentSession.value = recentSession
         }
@@ -75,7 +78,6 @@ class StatusViewModel : ViewModel() {
         repository.startSettlement(sessionId, onComplete)
     }
 
-    // 🧮 정산 계산 및 색상 적용 로직
     private fun calculateAndApply(data: SessionState, myUserId: String) {
         val tableNumber = data.tableNumber.takeIf { it > 0 } ?: data.tableId
         _storeInfo.value = "${data.storeName} · ${tableNumber}번 테이블"
@@ -90,8 +92,7 @@ class StatusViewModel : ViewModel() {
         _mySojuCount.value = me.sojuCount
         _myBeerCount.value = me.beerCount
 
-        // 색상 배정 (순서대로 빨주노초파보)
-        val colorHex = me.glassColor ?: when(myIndex) {
+        val colorHex = me.glassColor ?: when (myIndex) {
             0 -> "#FF5252"
             1 -> "#FF9800"
             2 -> "#FBC02D"
@@ -102,7 +103,6 @@ class StatusViewModel : ViewModel() {
         }
         _myCardColor.value = colorHex
 
-        // 금액 계산 로직
         val headCount = sortedParticipants.size
         var myPrice = 0
 
@@ -117,5 +117,62 @@ class StatusViewModel : ViewModel() {
         }
 
         _myExpectedPrice.value = myPrice
+    }
+
+    fun createSettlementFromCurrentSession(onComplete: (String?) -> Unit) {
+        val session = lastSessionState ?: run {
+            onComplete(null)
+            return
+        }
+
+        val sortedParticipants = session.participants.sortedBy { it.joinedAt }
+        val headCount = sortedParticipants.size
+        val totalPrice = session.totalFoodPrice + session.totalSojuPrice + session.totalBeerPrice
+
+        val settlementParticipants = sortedParticipants.map { participant ->
+            var participantPrice = 0
+            if (headCount > 0) {
+                participantPrice += session.totalFoodPrice / headCount
+            }
+            if (session.totalSojuCount > 0) {
+                participantPrice += (session.totalSojuPrice * participant.sojuCount) / session.totalSojuCount
+            }
+            if (session.totalBeerCount > 0) {
+                participantPrice += (session.totalBeerPrice * participant.beerCount) / session.totalBeerCount
+            }
+
+            SettlementParticipant(
+                userId = participant.userId,
+                userName = participant.userName,
+                mytotal = participantPrice,
+                beerCupCount = participant.beerCount,
+                sojuCupCount = participant.sojuCount,
+                paidStatus = false
+            )
+        }
+
+        val firstJoinedAt = sortedParticipants.firstOrNull()?.joinedAt?.takeIf { it > 0L }
+        val timeInfo = if (firstJoinedAt != null) {
+            val startMillis = firstJoinedAt * 1000L
+            val startTime = SimpleDateFormat("HH:mm", Locale.KOREA).format(Date(startMillis))
+            val diffMillis = System.currentTimeMillis() - startMillis
+            val hours = diffMillis / (1000 * 60 * 60)
+            val minutes = (diffMillis % (1000 * 60 * 60)) / (1000 * 60)
+            val duration = if (hours > 0) "${hours}시간 ${minutes}분" else "${minutes}분"
+            "$startTime 시작 · $duration · ${headCount}명"
+        } else {
+            "시작 시간 정보 없음 · ${headCount}명"
+        }
+
+        val settlement = Settlement(
+            sessionId = session.sessionId,
+            storeName = session.storeName,
+            tableId = session.tableNumber.takeIf { it > 0 } ?: session.tableId,
+            totalPrice = totalPrice,
+            timeInfo = timeInfo,
+            participants = settlementParticipants
+        )
+
+        settlementRepository.createSettlement(settlement, onComplete)
     }
 }

@@ -17,6 +17,55 @@ class StatusRepository {
     private val db = FirebaseFirestore.getInstance()
     private val dateFormat = SimpleDateFormat("yyyy.MM.dd", Locale.KOREA)
 
+    fun checkAndJoinSession(sessionId: String, userId: String, onComplete: () -> Unit) {
+        db.collection("sessions")
+            .whereEqualTo("sessionId", sessionId)
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                if (!querySnapshot.isEmpty) {
+                    val docRef = querySnapshot.documents[0].reference
+                    val sessionState = querySnapshot.documents[0].toObject(SessionState::class.java)
+                    if (sessionState != null) {
+                        val isAlreadyParticipant = sessionState.participants.any { it.userId == userId }
+                        if (!isAlreadyParticipant) {
+                            db.collection("users").document(userId).get()
+                                .addOnSuccessListener { userDoc ->
+                                    val nickname = userDoc.getString("nickname") ?: userDoc.getString("name") ?: "손님"
+                                    val newParticipant = hashMapOf(
+                                        "userId" to userId,
+                                        "userName" to nickname,
+                                        "sojuCupCount" to 0,
+                                        "beerCupCount" to 0,
+                                        "joinedAt" to com.google.firebase.Timestamp.now()
+                                    )
+                                    docRef.update("participants", com.google.firebase.firestore.FieldValue.arrayUnion(newParticipant))
+                                        .addOnSuccessListener {
+                                            Log.d("JANJAN_BUG", "✅ 세션 참가 완료: $nickname")
+                                            onComplete()
+                                        }
+                                        .addOnFailureListener { e ->
+                                            Log.e("JANJAN_BUG", "❌ 세션 참가 실패: ${e.message}")
+                                            onComplete()
+                                        }
+                                }
+                                .addOnFailureListener {
+                                    onComplete()
+                                }
+                        } else {
+                            onComplete()
+                        }
+                    } else {
+                        onComplete()
+                    }
+                } else {
+                    onComplete()
+                }
+            }
+            .addOnFailureListener {
+                onComplete()
+            }
+    }
+
     fun getSessionData(sessionId: String, onComplete: (SessionState?) -> Unit) {
         db.collection("sessions").document(sessionId)
             .get()
