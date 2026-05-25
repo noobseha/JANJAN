@@ -66,7 +66,8 @@ class BusinessCameraRepository(
             normalizedIp.toDefaultStreamUrl()
         }
         val normalizedCameraName = cameraName.trim().ifBlank { "${table.displayName} 카메라" }
-        val sessionId = ensureActiveSession(storeId, storeName, table)
+        val activeSession = ensureActiveSession(storeId, storeName, table)
+        val sessionId = activeSession.sessionId
         val cameraDeviceId = "camera_${normalizedIp.replace(Regex("[^A-Za-z0-9]"), "_")}"
             .lowercase(Locale.US)
         val tableId = table.tableId.ifBlank { "table_${table.tableNumber}" }
@@ -80,6 +81,7 @@ class BusinessCameraRepository(
             "tableId" to tableId,
             "tableNumber" to tableNumber,
             "sessionId" to sessionId,
+            "inviteCode" to activeSession.inviteCode,
             "cameraDeviceId" to cameraDeviceId,
             "cameraName" to normalizedCameraName,
             "cameraIp" to normalizedIp,
@@ -118,6 +120,7 @@ class BusinessCameraRepository(
                 "tableNumber" to tableNumber,
                 "label" to table.displayName,
                 "activeSessionId" to sessionId,
+                "inviteCode" to activeSession.inviteCode,
                 "updatedAt" to now
             ),
             SetOptions.merge()
@@ -142,7 +145,7 @@ class BusinessCameraRepository(
         storeId: String,
         storeName: String,
         table: BusinessTable
-    ): String {
+    ): ActiveSessionInfo {
         val tableId = table.tableId.ifBlank { "table_${table.tableNumber}" }
         val existing = db.collection("sessions")
             .whereEqualTo("storeId", storeId)
@@ -154,7 +157,10 @@ class BusinessCameraRepository(
             .documents
             .firstOrNull()
         if (existing != null) {
-            return existing.getString("sessionId").orEmpty().ifBlank { existing.id }
+            return ActiveSessionInfo(
+                sessionId = existing.getString("sessionId").orEmpty().ifBlank { existing.id },
+                inviteCode = existing.getString("inviteCode").orEmpty()
+            )
         }
 
         val tableNumber = table.tableNumber.takeIf { it > 0 }
@@ -181,11 +187,16 @@ class BusinessCameraRepository(
                 "totalBeerDrinkCount" to 0
             )
         ).await()
-        return sessionRef.id
+        return ActiveSessionInfo(sessionId = sessionRef.id, inviteCode = inviteCode)
     }
 
+    private data class ActiveSessionInfo(
+        val sessionId: String,
+        val inviteCode: String
+    )
+
     private fun defaultTables(storeId: String, storeName: String): List<BusinessTable> =
-        (1..8).map { number ->
+        (1..9).map { number ->
             BusinessTable(
                 tableId = "table_$number",
                 tableNumber = number,

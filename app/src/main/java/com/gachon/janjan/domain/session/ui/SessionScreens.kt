@@ -101,6 +101,7 @@ import com.gachon.janjan.domain.session.model.GlassUserMapping
 import com.gachon.janjan.domain.session.model.HealthSummary
 import com.gachon.janjan.domain.session.model.OrderSummaryItem
 import com.gachon.janjan.domain.session.model.SessionParticipant
+import com.gachon.janjan.domain.session.model.UserProfile
 import com.gachon.janjan.domain.session.viewmodel.HistoryHealthViewModel
 import com.gachon.janjan.domain.session.viewmodel.SessionViewModel
 import kotlinx.coroutines.delay
@@ -128,7 +129,6 @@ fun SessionHomeScreen(
     historyHealthViewModel: HistoryHealthViewModel,
     onQrScan: () -> Unit,
     onInviteCode: () -> Unit,
-    onBusinessOwner: () -> Unit,
     onOrder: () -> Unit,
     onGlassColor: (String) -> Unit
 ) {
@@ -139,6 +139,7 @@ fun SessionHomeScreen(
     val isLoading by sessionViewModel.isLoading.collectAsStateWithLifecycle()
     val histories by historyHealthViewModel.histories.collectAsStateWithLifecycle()
     val healthSummary by historyHealthViewModel.healthSummary.collectAsStateWithLifecycle()
+    val userProfile by sessionViewModel.userProfile.collectAsStateWithLifecycle()
 
     var tab by remember { mutableStateOf("home") }
     var profileTab by remember { mutableStateOf("history") }
@@ -193,10 +194,14 @@ fun SessionHomeScreen(
                         "profile" -> ProfileScreen(
                             histories = histories,
                             healthSummary = healthSummary,
+                            userProfile = userProfile,
                             profileTab = profileTab,
                             onProfileTabChange = { profileTab = it },
                             onHistoryClick = { selectedHistory = it },
-                            onDeleteHistory = { historyHealthViewModel.removeHistoryLocally(it.sessionId) }
+                            onDeleteHistory = { historyHealthViewModel.removeHistoryLocally(it.sessionId) },
+                            onSaveProfile = { nickname, bio ->
+                                sessionViewModel.saveUserProfile(nickname, bio)
+                            }
                         )
                         else -> HomeContent(
                             activeSession = activeSession,
@@ -207,7 +212,6 @@ fun SessionHomeScreen(
                             histories = histories,
                             onQrScan = onQrScan,
                             onInviteCode = onInviteCode,
-                            onBusinessOwner = onBusinessOwner,
                             onOrder = onOrder,
                             onGlassColor = onGlassColor,
                             onSettlement = {
@@ -730,7 +734,6 @@ private fun HomeContent(
     histories: List<DrinkHistoryItem>,
     onQrScan: () -> Unit,
     onInviteCode: () -> Unit,
-    onBusinessOwner: () -> Unit,
     onOrder: () -> Unit,
     onGlassColor: (String) -> Unit,
     onSettlement: () -> Unit,
@@ -746,16 +749,6 @@ private fun HomeContent(
         item {
             Text("안녕하세요", color = TextSub, fontSize = 14.sp)
             Text("사용자 님", color = TextMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        }
-
-        item {
-            HomeStartButton(
-                title = "사업자 테이블 관리",
-                subtitle = "테이블별 카메라 연결",
-                primary = false,
-                icon = { Icon(Icons.Default.Home, contentDescription = null, tint = Mint) },
-                onClick = onBusinessOwner
-            )
         }
 
         if (activeSession == null) {
@@ -1579,16 +1572,20 @@ private fun pickAvailableGlassColor(
 private fun ProfileScreen(
     histories: List<DrinkHistoryItem>,
     healthSummary: HealthSummary?,
+    userProfile: UserProfile,
     profileTab: String,
     onProfileTabChange: (String) -> Unit,
     onHistoryClick: (DrinkHistoryItem) -> Unit,
-    onDeleteHistory: (DrinkHistoryItem) -> Unit
+    onDeleteHistory: (DrinkHistoryItem) -> Unit,
+    onSaveProfile: (String, String) -> Unit
 ) {
     var settingsScreen by remember { mutableStateOf<String?>(null) }
 
     settingsScreen?.let { screen ->
         SettingsDetailScreen(
             screen = screen,
+            userProfile = userProfile,
+            onSaveProfile = onSaveProfile,
             onBack = { settingsScreen = null }
         )
         return
@@ -1614,8 +1611,8 @@ private fun ProfileScreen(
                 }
                 Spacer(Modifier.width(14.dp))
                 Column {
-                    Text("사용자", color = TextMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                    Text("잔잔과 함께한 술자리", color = TextDim, fontSize = 13.sp)
+                    Text(userProfile.nickname, color = TextMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    Text(userProfile.bio, color = TextDim, fontSize = 13.sp)
                 }
             }
         }
@@ -1679,9 +1676,14 @@ private fun SettingsContent(
 }
 
 @Composable
-private fun SettingsDetailScreen(screen: String, onBack: () -> Unit) {
-    var nickname by remember { mutableStateOf("사용자") }
-    var bio by remember { mutableStateOf("잔잔과 함께한 술자리") }
+private fun SettingsDetailScreen(
+    screen: String,
+    userProfile: UserProfile,
+    onSaveProfile: (String, String) -> Unit,
+    onBack: () -> Unit
+) {
+    var nickname by remember(userProfile.nickname) { mutableStateOf(userProfile.nickname) }
+    var bio by remember(userProfile.bio) { mutableStateOf(userProfile.bio) }
     var pushEnabled by remember { mutableStateOf(true) }
     var darkMode by remember { mutableStateOf(false) }
 
@@ -1732,7 +1734,10 @@ private fun SettingsDetailScreen(screen: String, onBack: () -> Unit) {
                     onClick = {}
                 )
                 Button(
-                    onClick = onBack,
+                    onClick = {
+                        onSaveProfile(nickname, bio)
+                        onBack()
+                    },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Mint),
                     shape = RoundedCornerShape(12.dp)
@@ -1846,8 +1851,21 @@ private fun HealthContent(summary: HealthSummary?) {
                     Icon(Icons.Default.LocalBar, contentDescription = null, tint = color, modifier = Modifier.size(42.dp))
                 }
                 Spacer(Modifier.height(12.dp))
-                Text("내 간: $state", color = color, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                Text(message, color = TextSub, fontSize = 14.sp)
+                Text(
+                    "내 간: $state",
+                    modifier = Modifier.fillMaxWidth(),
+                    color = color,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    message,
+                    modifier = Modifier.fillMaxWidth(),
+                    color = TextSub,
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center
+                )
             }
         }
 

@@ -29,7 +29,6 @@ class SessionHomeFragment : Fragment() {
                 historyHealthViewModel = historyHealthViewModel,
                 onQrScan = { findNavController().navigate(R.id.qrScanFragment) },
                 onInviteCode = { findNavController().navigate(R.id.inviteCodeFragment) },
-                onBusinessOwner = { findNavController().navigate(R.id.businessOwnerFragment) },
                 onOrder = {
                     findNavController().navigate(
                         R.id.orderFragment,

@@ -10,11 +10,13 @@ import com.gachon.janjan.domain.session.FirebaseConfig
 import com.gachon.janjan.domain.session.model.GlassUserMapping
 import com.gachon.janjan.domain.session.model.OrderSummaryItem
 import com.gachon.janjan.domain.session.model.SessionParticipant
+import com.gachon.janjan.domain.session.model.UserProfile
 import com.gachon.janjan.domain.session.repository.DetectionEventRepository
 import com.gachon.janjan.domain.session.repository.GlassMappingRepository
 import com.gachon.janjan.domain.session.repository.ParticipantRepository
 import com.gachon.janjan.domain.session.repository.SessionRepository
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -55,16 +57,81 @@ class SessionViewModel(
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
+    private val _userProfile = MutableStateFlow(UserProfile())
+    val userProfile: StateFlow<UserProfile> = _userProfile.asStateFlow()
+
     val currentUserId: String
         get() = FirebaseConfig.auth.currentUser?.uid ?: PENDING_USER_ID
 
     private val currentUserName: String
-        get() = FirebaseConfig.auth.currentUser?.displayName
+        get() = _userProfile.value.nickname.ifBlank {
+            FirebaseConfig.auth.currentUser?.displayName
             ?: FirebaseConfig.auth.currentUser?.email?.substringBefore("@")
             ?: "사용자"
+        }
 
     init {
         loadLatestActiveSession()
+        loadUserProfile()
+    }
+
+    fun loadUserProfile() {
+        viewModelScope.launch {
+            runCatching {
+                ensureSignedIn()
+                val uid = currentUserId
+                val doc = FirebaseConfig.db.collection("users").document(uid).get().await()
+                val fallbackName = FirebaseConfig.auth.currentUser?.displayName
+                    ?: FirebaseConfig.auth.currentUser?.email?.substringBefore("@")
+                    ?: "사용자"
+                UserProfile(
+                    userId = uid,
+                    nickname = doc.getString("nickname")
+                        ?: doc.getString("name")
+                        ?: fallbackName,
+                    bio = doc.getString("bio")
+                        ?: doc.getString("description")
+                        ?: "잔잔과 함께한 술자리",
+                    phone = doc.getString("phone").orEmpty(),
+                    address = doc.getString("address").orEmpty()
+                )
+            }.onSuccess { profile ->
+                _userProfile.value = profile
+            }
+        }
+    }
+
+    fun saveUserProfile(nickname: String, bio: String, onComplete: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            runCatching {
+                ensureSignedIn()
+                val cleanedNickname = nickname.trim().ifBlank { "사용자" }
+                val cleanedBio = bio.trim().ifBlank { "잔잔과 함께한 술자리" }
+                FirebaseConfig.db.collection("users").document(currentUserId)
+                    .set(
+                        mapOf(
+                            "nickname" to cleanedNickname,
+                            "bio" to cleanedBio,
+                            "updatedAt" to com.google.firebase.Timestamp.now()
+                        ),
+                        SetOptions.merge()
+                    )
+                    .await()
+                _userProfile.value = _userProfile.value.copy(
+                    userId = currentUserId,
+                    nickname = cleanedNickname,
+                    bio = cleanedBio
+                )
+            }.onSuccess {
+                _message.value = "프로필이 저장되었습니다."
+                onComplete(true)
+            }.onFailure {
+                _message.value = "프로필 저장 실패: ${it.message ?: "알 수 없는 오류"}"
+                onComplete(false)
+            }
+            _isLoading.value = false
+        }
     }
 
     fun loadLatestActiveSession() {
@@ -89,6 +156,7 @@ class SessionViewModel(
                 val session = sessionRepo.findByInviteCode(code)
                 if (session != null) {
                     participantRepo.joinSession(session.sessionId, currentUserId, currentUserName)
+                    sessionRepo.syncTableActiveSession(session)
                     startListening(session.sessionId)
                     loadOrderSummaries(session.sessionId)
                 }
@@ -122,6 +190,7 @@ class SessionViewModel(
                 }
                 if (session != null) {
                     participantRepo.joinSession(session.sessionId, currentUserId, currentUserName)
+                    sessionRepo.syncTableActiveSession(session)
                     startListening(session.sessionId)
                     loadOrderSummaries(session.sessionId)
                 }

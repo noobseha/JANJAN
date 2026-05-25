@@ -18,7 +18,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Janjan">
         <activity
-            android:name=".MainActivity"
+            android:name=".LandingActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -26,6 +26,19 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".MainActivity" />
+        <activity android:name=".LoginActivity" />
+        <activity android:name=".RegisterActivity" />
+        <activity android:name=".BusinessLoginActivity" />
+        <activity android:name=".BusinessRegisterActivity" />
+        <activity android:name=".AddressSearchActivity" />
+        <activity android:name=".StoreSearchActivity" />
+        <activity android:name=".ProfileSettingActivity" />
+        <activity android:name=".AppSettingActivity" />
+        <activity android:name=".ChangePasswordActivity" />
+        <activity android:name=".MenuAddActivity" />
+        <activity android:name=".MenuEditActivity" />
+        <activity android:name=".SettlementActivity" />
     </application>
 
 </manifest>

@@ -11,11 +11,6 @@
         android:label="SessionHomeFragment" />
 
     <fragment
-        android:id="@+id/businessOwnerFragment"
-        android:name="com.gachon.janjan.domain.owner.ui.BusinessOwnerFragment"
-        android:label="BusinessOwnerFragment" />
-
-    <fragment
         android:id="@+id/qrScanFragment"
         android:name="com.gachon.janjan.domain.session.ui.QrScanFragment"
         android:label="QrScanFragment" />
@@ -65,8 +60,22 @@
         android:name="com.gachon.janjan.ui.status.StatusFragment"
         android:label="StatusFragment"
         tools:layout="@layout/fragment_status">
+        <action
+            android:id="@+id/action_status_to_settlement"
+            app:destination="@id/settlementFragment" />
         <argument
             android:name="sessionId"
+            app:argType="string"
+            android:defaultValue="" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/settlementFragment"
+        android:name="com.gachon.janjan.ui.settlement.SettlementFragment"
+        android:label="SettlementFragment"
+        tools:layout="@layout/fragment_settlement">
+        <argument
+            android:name="settlementId"
             app:argType="string"
             android:defaultValue="" />
     </fragment>
