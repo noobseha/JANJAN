@@ -1,0 +1,718 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFFFFF">
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/bottomNav">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="40dp">
+            <!-- 맨 위 글씨 섹터 -->
+            <TextView
+                android:id="@+id/tvGreeting"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginTop="30dp"
+                android:text="안녕하세요"
+                android:textColor="#333333"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"/>
+            <TextView
+                android:id="@+id/tvUserName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="*여기에 유저이름* 님"
+                android:textColor="#333333"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                app:layout_constraintTop_toBottomOf="@id/tvGreeting"
+                app:layout_constraintStart_toStartOf="@id/tvGreeting" />
+            <!-- 색 들어가는 박스 - 술 잔수 및 금액 -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cardStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="20dp"
+                app:cardBackgroundColor="#FBC02D"
+                app:cardCornerRadius="24dp"
+                app:cardElevation="0dp"
+                app:layout_constraintTop_toBottomOf="@id/tvUserName">
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingVertical="32dp"
+                    android:paddingHorizontal="24dp">
+
+
+                    <TextView
+                        android:id="@+id/tvStoreAndTable"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="*가게명* · *테이블 번호*"
+                        android:textColor="#FFFFFF"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintVertical_bias="1.0" />
+
+                    <LinearLayout
+                        android:id="@+id/layoutGlasses"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="30dp"
+                        android:gravity="center"
+                        android:orientation="horizontal"
+                        app:layout_constraintTop_toBottomOf="@id/tvStoreAndTable">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="소주잔"
+                                android:textColor="#FFFFFF"
+                                android:alpha="0.8" />
+                            <TextView
+                                android:id="@+id/tvSojuCount"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="0잔"
+                                android:textColor="#FFFFFF"
+                                android:textSize="24sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="1dp"
+                            android:layout_height="40dp"
+                            android:background="#FFFFFF" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="맥주잔"
+                                android:textColor="#FFFFFF"
+                                android:alpha="0.8" />
+                            <TextView
+                                android:id="@+id/tvBeerCount"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="0잔"
+                                android:textColor="#FFFFFF"
+                                android:textSize="24sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+                    </LinearLayout>
+                    <View
+                        android:id="@+id/dividerStatus"
+                        android:layout_width="match_parent"
+                        android:layout_marginTop="5dp"
+                        android:layout_height="1dp"
+                        android:background="#FFFFFF"
+                        app:layout_constraintTop_toBottomOf="@id/layoutGlasses"/>
+                    <TextView
+                        android:id="@+id/tvPriceLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="28dp"
+                        android:text="나의 정산 예정 금액"
+                        android:textColor="#FFFFFF"
+                        android:alpha="0.9"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/layoutGlasses" />
+
+                    <TextView
+                        android:id="@+id/tvTotalPrice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="22,000원"
+                        android:textColor="#FFFFFF"
+                        android:textSize="36sp"
+                        android:textStyle="bold"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/tvPriceLabel" />
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </androidx.cardview.widget.CardView>
+            <!-- 정산하기 버튼 -->
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnSettlement"
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="15dp"
+                android:background="@drawable/bg_mint_button"
+                android:text="정산하기"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                app:layout_constraintTop_toBottomOf="@id/cardStatus" />
+            <!-- 추가주문, 색상 매핑 버튼 -->
+            <LinearLayout
+                android:id="@+id/layoutActionGrid"
+                android:layout_width="match_parent"
+                android:layout_height="100dp"
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="15dp"
+                android:orientation="horizontal"
+                app:layout_constraintTop_toBottomOf="@id/btnSettlement">
+
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/btnActionOrder"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    app:cardBackgroundColor="#E8F6F3"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:src="@drawable/ic_plus"
+                            app:tint="#5AC4AF" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="추가 주문하기"
+                            android:textColor="#333333"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
+
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/btnActionGlassMapping"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    app:cardBackgroundColor="#E8F6F3"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:src="@drawable/ic_color_screen"
+                            app:tint="#5AC4AF" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="술잔 색상 매핑"
+                            android:textColor="#333333"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
+
+            </LinearLayout>
+            <!-- 온라인 친구 탭 -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cardSocialSection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="10dp"
+                android:visibility="gone"
+                app:cardBackgroundColor="#E8F6F3"
+                app:cardCornerRadius="24dp"
+                app:cardElevation="0dp"
+                app:layout_constraintTop_toBottomOf="@id/layoutActionGrid"
+                tools:visibility="visible">
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:padding="20dp">
+
+                    <TextView
+                        android:id="@+id/tvSocialTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="술 먹고 있는 친구"
+                        android:textColor="#333333"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <ScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="200dp"
+                        android:layout_marginTop="16dp"
+                        android:scrollbars="none"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/tvSocialTitle">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+                            <!-- 친구1 -->
+                            <androidx.cardview.widget.CardView
+                                android:id="@+id/cardFriend1"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="12dp"
+                                app:cardBackgroundColor="#FFFFFF"
+                                app:cardCornerRadius="16dp"
+                                app:cardElevation="0dp">
+
+                                <androidx.constraintlayout.widget.ConstraintLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:padding="12dp">
+
+                                    <FrameLayout
+                                        android:id="@+id/profileContainer1"
+                                        android:layout_width="48dp"
+                                        android:layout_height="48dp"
+                                        app:layout_constraintStart_toStartOf="parent"
+                                        app:layout_constraintTop_toTopOf="parent"
+                                        app:layout_constraintBottom_toBottomOf="parent">
+
+                                        <com.google.android.material.imageview.ShapeableImageView
+                                            android:id="@+id/ivProfile1"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            android:scaleType="centerCrop"
+                                            app:shapeAppearanceOverlay="@style/CircleShapeAppearance"
+                                            tools:srcCompat="@drawable/ic_default" />
+
+                                        <ImageView
+                                            android:id="@+id/ivDot1"
+                                            android:layout_width="14dp"
+                                            android:layout_height="14dp"
+                                            android:layout_gravity="bottom|end"
+                                            android:src="@drawable/ic_online_green_dot" />
+                                    </FrameLayout>
+
+                                    <TextView
+                                        android:id="@+id/tvName1"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginStart="12dp"
+                                        android:text="친구"
+                                        android:textColor="#333333"
+                                        android:textSize="16sp"
+                                        android:textStyle="bold"
+                                        app:layout_constraintStart_toEndOf="@id/profileContainer1"
+                                        app:layout_constraintTop_toTopOf="@id/profileContainer1"
+                                        app:layout_constraintBottom_toTopOf="@id/tvInfo1"
+                                        app:layout_constraintVertical_chainStyle="packed" />
+
+                                    <TextView
+                                        android:id="@+id/tvInfo1"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="가게 · 0잔"
+                                        android:textColor="#999999"
+                                        android:textSize="12sp"
+                                        app:layout_constraintStart_toStartOf="@id/tvName1"
+                                        app:layout_constraintTop_toBottomOf="@id/tvName1"
+                                        app:layout_constraintBottom_toBottomOf="@id/profileContainer1" />
+                                </androidx.constraintlayout.widget.ConstraintLayout>
+                            </androidx.cardview.widget.CardView>
+                            <!-- 친구2 -->
+                            <androidx.cardview.widget.CardView
+                                android:id="@+id/cardFriend2"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="12dp"
+                                app:cardBackgroundColor="#FFFFFF"
+                                app:cardCornerRadius="16dp"
+                                app:cardElevation="0dp">
+
+                                <androidx.constraintlayout.widget.ConstraintLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:padding="12dp">
+
+                                    <FrameLayout
+                                        android:id="@+id/profileContainer2"
+                                        android:layout_width="48dp"
+                                        android:layout_height="48dp"
+                                        app:layout_constraintStart_toStartOf="parent"
+                                        app:layout_constraintTop_toTopOf="parent"
+                                        app:layout_constraintBottom_toBottomOf="parent">
+
+                                        <com.google.android.material.imageview.ShapeableImageView
+                                            android:id="@+id/ivProfile2"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            android:scaleType="centerCrop"
+                                            app:shapeAppearanceOverlay="@style/CircleShapeAppearance"
+                                            tools:srcCompat="@drawable/ic_default" />
+
+                                        <ImageView
+                                            android:id="@+id/ivDot2"
+                                            android:layout_width="14dp"
+                                            android:layout_height="14dp"
+                                            android:layout_gravity="bottom|end"
+                                            android:src="@drawable/ic_online_green_dot" />
+                                    </FrameLayout>
+
+                                    <TextView
+                                        android:id="@+id/tvName2"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginStart="12dp"
+                                        android:text="친구"
+                                        android:textColor="#333333"
+                                        android:textSize="16sp"
+                                        android:textStyle="bold"
+                                        app:layout_constraintStart_toEndOf="@id/profileContainer2"
+                                        app:layout_constraintTop_toTopOf="@id/profileContainer2"
+                                        app:layout_constraintBottom_toTopOf="@id/tvInfo2"
+                                        app:layout_constraintVertical_chainStyle="packed" />
+
+                                    <TextView
+                                        android:id="@+id/tvInfo2"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="가게 · 0잔"
+                                        android:textColor="#999999"
+                                        android:textSize="12sp"
+                                        app:layout_constraintStart_toStartOf="@id/tvName2"
+                                        app:layout_constraintTop_toBottomOf="@id/tvName2"
+                                        app:layout_constraintBottom_toBottomOf="@id/profileContainer2" />
+                                </androidx.constraintlayout.widget.ConstraintLayout>
+                            </androidx.cardview.widget.CardView>
+                            <!-- 친구3 -->
+                            <androidx.cardview.widget.CardView
+                                android:id="@+id/cardFriend3"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="12dp"
+                                app:cardBackgroundColor="#FFFFFF"
+                                app:cardCornerRadius="16dp"
+                                app:cardElevation="0dp">
+
+                                <androidx.constraintlayout.widget.ConstraintLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:padding="12dp">
+
+                                    <FrameLayout
+                                        android:id="@+id/profileContainer3"
+                                        android:layout_width="48dp"
+                                        android:layout_height="48dp"
+                                        app:layout_constraintStart_toStartOf="parent"
+                                        app:layout_constraintTop_toTopOf="parent"
+                                        app:layout_constraintBottom_toBottomOf="parent">
+
+                                        <com.google.android.material.imageview.ShapeableImageView
+                                            android:id="@+id/ivProfile3"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            android:scaleType="centerCrop"
+                                            app:shapeAppearanceOverlay="@style/CircleShapeAppearance"
+                                            tools:srcCompat="@drawable/ic_default" />
+
+                                        <ImageView
+                                            android:id="@+id/ivDot3"
+                                            android:layout_width="14dp"
+                                            android:layout_height="14dp"
+                                            android:layout_gravity="bottom|end"
+                                            android:src="@drawable/ic_online_green_dot"
+                                            android:visibility="gone" />
+                                    </FrameLayout>
+
+                                    <TextView
+                                        android:id="@+id/tvName3"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginStart="12dp"
+                                        android:text="친구"
+                                        android:textColor="#333333"
+                                        android:textSize="16sp"
+                                        android:textStyle="bold"
+                                        app:layout_constraintStart_toEndOf="@id/profileContainer3"
+                                        app:layout_constraintTop_toTopOf="@id/profileContainer3"
+                                        app:layout_constraintBottom_toTopOf="@id/tvInfo3"
+                                        app:layout_constraintVertical_chainStyle="packed" />
+
+                                    <TextView
+                                        android:id="@+id/tvInfo3"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="오프라인"
+                                        android:textColor="#999999"
+                                        android:textSize="12sp"
+                                        app:layout_constraintStart_toStartOf="@id/tvName3"
+                                        app:layout_constraintTop_toBottomOf="@id/tvName3"
+                                        app:layout_constraintBottom_toBottomOf="@id/profileContainer3" />
+                                </androidx.constraintlayout.widget.ConstraintLayout>
+                            </androidx.cardview.widget.CardView>
+                            <!-- 친구4 -->
+                            <androidx.cardview.widget.CardView
+                                android:id="@+id/cardFriend4"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="12dp"
+                                app:cardBackgroundColor="#FFFFFF"
+                                app:cardCornerRadius="16dp"
+                                app:cardElevation="0dp">
+
+                                <androidx.constraintlayout.widget.ConstraintLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:padding="12dp">
+
+                                    <FrameLayout
+                                        android:id="@+id/profileContainer4"
+                                        android:layout_width="48dp"
+                                        android:layout_height="48dp"
+                                        app:layout_constraintStart_toStartOf="parent"
+                                        app:layout_constraintTop_toTopOf="parent"
+                                        app:layout_constraintBottom_toBottomOf="parent">
+
+                                        <com.google.android.material.imageview.ShapeableImageView
+                                            android:id="@+id/ivProfile4"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            android:scaleType="centerCrop"
+                                            app:shapeAppearanceOverlay="@style/CircleShapeAppearance"
+                                            tools:srcCompat="@drawable/ic_default" />
+
+                                        <ImageView
+                                            android:id="@+id/ivDot4"
+                                            android:layout_width="14dp"
+                                            android:layout_height="14dp"
+                                            android:layout_gravity="bottom|end"
+                                            android:src="@drawable/ic_online_green_dot" />
+                                    </FrameLayout>
+
+                                    <TextView
+                                        android:id="@+id/tvName4"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginStart="12dp"
+                                        android:text="친구"
+                                        android:textColor="#333333"
+                                        android:textSize="16sp"
+                                        android:textStyle="bold"
+                                        app:layout_constraintStart_toEndOf="@id/profileContainer4"
+                                        app:layout_constraintTop_toTopOf="@id/profileContainer4"
+                                        app:layout_constraintBottom_toTopOf="@id/tvInfo4"
+                                        app:layout_constraintVertical_chainStyle="packed" />
+
+                                    <TextView
+                                        android:id="@+id/tvInfo4"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="가게 · 0잔"
+                                        android:textColor="#999999"
+                                        android:textSize="12sp"
+                                        app:layout_constraintStart_toStartOf="@id/tvName4"
+                                        app:layout_constraintTop_toBottomOf="@id/tvName4"
+                                        app:layout_constraintBottom_toBottomOf="@id/profileContainer4" />
+                                </androidx.constraintlayout.widget.ConstraintLayout>
+                            </androidx.cardview.widget.CardView>
+                        </LinearLayout>
+                    </ScrollView>
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </androidx.cardview.widget.CardView>
+            <!-- 최근 술자리 탭 -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cardRecentSection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="10dp"
+                android:visibility="gone"
+                app:cardBackgroundColor="#E8F6F3"
+                app:cardCornerRadius="24dp"
+                app:cardElevation="0dp"
+                app:layout_constraintTop_toBottomOf="@id/cardSocialSection"
+                tools:visibility="visible">
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="20dp">
+
+                    <TextView
+                        android:id="@+id/tvRecentTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="최근 술자리"
+                        android:textColor="#333333"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <TextView
+                        android:id="@+id/tvRecentViewAll"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="전체보기"
+                        android:textColor="#999999"
+                        android:textSize="14sp"
+                        app:layout_constraintBottom_toBottomOf="@id/tvRecentTitle"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="@id/tvRecentTitle" />
+
+                    <androidx.cardview.widget.CardView
+                        android:id="@+id/itemRecentSession"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        app:cardBackgroundColor="#FFFFFF"
+                        app:cardCornerRadius="16dp"
+                        app:cardElevation="0dp"
+                        app:layout_constraintTop_toBottomOf="@id/tvRecentTitle">
+
+                        <androidx.constraintlayout.widget.ConstraintLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:padding="16dp">
+
+                            <ImageView
+                                android:id="@+id/ivRecentIcon"
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:background="@drawable/bg_category_selected"
+                                android:padding="8dp"
+                                android:src="@drawable/ic_default"
+                                app:tint="#FFFFFF"
+                                app:layout_constraintBottom_toBottomOf="parent"
+                                app:layout_constraintStart_toStartOf="parent"
+                                app:layout_constraintTop_toTopOf="parent" />
+
+                            <TextView
+                                android:id="@+id/tvRecentStore"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="16dp"
+                                android:text="최근 술자리"
+                                android:textColor="#333333"
+                                android:textSize="16sp"
+                                android:textStyle="bold"
+                                app:layout_constraintStart_toEndOf="@id/ivRecentIcon"
+                                app:layout_constraintTop_toTopOf="@id/ivRecentIcon" />
+
+                            <TextView
+                                android:id="@+id/tvRecentDetails"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:text="날짜 · 0명 · 0원"
+                                android:textColor="#999999"
+                                android:textSize="12sp"
+                                app:layout_constraintStart_toStartOf="@id/tvRecentStore"
+                                app:layout_constraintTop_toBottomOf="@id/tvRecentStore" />
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                app:layout_constraintBottom_toBottomOf="parent"
+                                app:layout_constraintEnd_toEndOf="parent"
+                                app:layout_constraintTop_toTopOf="parent">
+
+                                <View android:layout_width="28dp" android:layout_height="28dp" android:background="@drawable/ic_default" />
+                                <View android:layout_width="28dp" android:layout_height="28dp" android:layout_marginStart="-12dp" android:background="@drawable/ic_default" />
+                                <View android:layout_width="28dp" android:layout_height="28dp" android:layout_marginStart="-12dp" android:background="@drawable/ic_default" />
+                            </LinearLayout>
+
+                        </androidx.constraintlayout.widget.ConstraintLayout>
+                    </androidx.cardview.widget.CardView>
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </androidx.cardview.widget.CardView>
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.core.widget.NestedScrollView>
+    <!-- 하단 메뉴 바 -->
+    <LinearLayout
+        android:id="@+id/bottomNav"
+        android:layout_width="match_parent"
+        android:layout_height="72dp"
+        android:orientation="horizontal"
+        android:background="#FFFFFF"
+        android:elevation="16dp"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_ranking" app:tint="#999999" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="랭킹" android:textColor="#999999" android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+            <FrameLayout
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_category_selected">
+                <ImageView android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="center" android:src="@drawable/ic_home" app:tint="#FFFFFF" />
+            </FrameLayout>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="홈" android:textColor="#5AC4AF" android:textSize="12sp" android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_profile" app:tint="#999999" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="프로필" android:textColor="#999999" android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

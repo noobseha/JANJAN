@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/sessionHomeFragment">
+
+    <fragment
+        android:id="@+id/sessionHomeFragment"
+        android:name="com.gachon.janjan.domain.session.ui.SessionHomeFragment"
+        android:label="SessionHomeFragment" />
+
+    <fragment
+        android:id="@+id/qrScanFragment"
+        android:name="com.gachon.janjan.domain.session.ui.QrScanFragment"
+        android:label="QrScanFragment" />
+
+    <fragment
+        android:id="@+id/inviteCodeFragment"
+        android:name="com.gachon.janjan.domain.session.ui.InviteCodeFragment"
+        android:label="InviteCodeFragment" />
+
+    <fragment
+        android:id="@+id/glassColorFragment"
+        android:name="com.gachon.janjan.domain.session.ui.GlassColorFragment"
+        android:label="GlassColorFragment">
+        <argument
+            android:name="sessionId"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="showDone"
+            app:argType="boolean"
+            android:defaultValue="false" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/doneFragment"
+        android:name="com.gachon.janjan.domain.session.ui.DoneFragment"
+        android:label="DoneFragment">
+        <argument
+            android:name="sessionId"
+            app:argType="string"
+            android:defaultValue="" />
+    </fragment>
+
+    <fragment
+    android:id="@+id/orderFragment"
+    android:name="com.gachon.janjan.ui.order.OrderFragment"
+    android:label="OrderFragment"
+    tools:layout="@layout/fragment_order">
+    <argument
+        android:name="sessionId"
+        app:argType="string"
+        android:defaultValue="" />
+</fragment>
+
+    <fragment
+        android:id="@+id/statusFragment"
+        android:name="com.gachon.janjan.ui.status.StatusFragment"
+        android:label="StatusFragment"
+        tools:layout="@layout/fragment_status">
+        <action
+            android:id="@+id/action_status_to_settlement"
+            app:destination="@id/settlementFragment" />
+        <argument
+            android:name="sessionId"
+            app:argType="string"
+            android:defaultValue="" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/settlementFragment"
+        android:name="com.gachon.janjan.ui.settlement.SettlementFragment"
+        android:label="SettlementFragment"
+        tools:layout="@layout/fragment_settlement">
+        <argument
+            android:name="settlementId"
+            app:argType="string"
+            android:defaultValue="" />
+    </fragment>
+</navigation>
