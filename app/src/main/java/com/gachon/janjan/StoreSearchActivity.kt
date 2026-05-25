@@ -35,11 +35,12 @@ class StoreSearchActivity : AppCompatActivity() {
 
     inner class StoreInterface {
         @JavascriptInterface
-        fun onStoreSelected(name: String, phone: String, address: String) {
+        fun onStoreSelected(name: String, phone: String, address: String, placeId: String) {
             val intent = Intent()
             intent.putExtra("name", name)
             intent.putExtra("phone", phone)
             intent.putExtra("address", address)
+            intent.putExtra("place_id", placeId)
             setResult(Activity.RESULT_OK, intent)
             finish()
         }

@@ -73,7 +73,8 @@
                 return '<div class="result-item" onclick="selectPlace(\'' +
                     escape(place.place_name) + '\',\'' +
                     escape(place.phone) + '\',\'' +
-                    escape(place.road_address_name || place.address_name) + '\')">' +
+                    escape(place.road_address_name || place.address_name) + '\',\'' +
+                    escape(place.id) + '\')">' +
                     '<div class="place-name">' + place.place_name + '</div>' +
                     '<div class="place-address">' + (place.road_address_name || place.address_name) + '</div>' +
                     '<div class="place-phone">' + (place.phone || '전화번호 없음') + '</div>' +
@@ -85,8 +86,8 @@
         });
     }
 
-    function selectPlace(name, phone, address) {
-        Android.onStoreSelected(unescape(name), unescape(phone), unescape(address));
+    function selectPlace(name, phone, address, placeId) {
+        Android.onStoreSelected(unescape(name), unescape(phone), unescape(address), unescape(placeId));
     }
 </script>
 </body>

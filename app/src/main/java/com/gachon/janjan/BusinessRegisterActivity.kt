@@ -14,6 +14,7 @@ import com.google.firebase.firestore.firestore
 class BusinessRegisterActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityBusinessRegisterBinding
+    private var storePlaceId: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,6 +47,7 @@ class BusinessRegisterActivity : AppCompatActivity() {
                         "name" to storeName,
                         "phone" to storePhone,
                         "address" to storeAddress,
+                        "place_id" to storePlaceId,
                         "is_active" to true,
                         "table_count" to 0,
                         "created_at" to com.google.firebase.Timestamp.now(),
@@ -76,6 +78,8 @@ class BusinessRegisterActivity : AppCompatActivity() {
             val name = data?.getStringExtra("name") ?: ""
             val phone = data?.getStringExtra("phone") ?: ""
             val address = data?.getStringExtra("address") ?: ""
+            val placeId = data?.getStringExtra("place_id") ?: ""
+            storePlaceId = placeId
             binding.etSelectedStoreName.setText(name)
             binding.etStorePhone.setText(phone)
             binding.etStoreAddress.setText(address)
