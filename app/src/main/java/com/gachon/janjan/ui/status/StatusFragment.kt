@@ -119,8 +119,9 @@ class StatusFragment : Fragment(R.layout.fragment_status) {
     private fun startAutoRefresh() {
         //Status 화면 꺼지면 알아서 루프를 멈춤
         viewLifecycleOwner.lifecycleScope.launch {
+            val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            val currentUserId = currentUser?.uid ?: "anonymous"
             while (isActive) { // 화면이 살아있는 동안 무한 반복
-                val currentUserId = "user_123" // TODO: 실제 유저 ID로 바꾸기
                 viewModel.refreshData("session_001", currentUserId)
 
                 delay(5000L) // 5000밀리초(5초) 대기 후 다시 위로 올라가서 실행

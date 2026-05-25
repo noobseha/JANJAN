@@ -50,11 +50,14 @@ class StatusViewModel : ViewModel() {
     // 🔄 새로고침 (데이터 다시 불러오기)
     fun refreshData(sessionId: String, userId: String) {
 
-        // 1. [상단 박스] 레포지토리를 통해 Firebase에서 진짜 데이터 가져오기
-        repository.getSessionData(sessionId) { sessionData ->
-            if (sessionData != null) {
-                lastSessionState = sessionData
-                calculateAndApply(sessionData, userId)
+        // 0. [세션 참가] 사용자가 세션에 속해있지 않으면 자동 참가 등록
+        repository.checkAndJoinSession(sessionId, userId) {
+            // 1. [상단 박스] 레포지토리를 통해 Firebase에서 진짜 데이터 가져오기
+            repository.getSessionData(sessionId) { sessionData ->
+                if (sessionData != null) {
+                    lastSessionState = sessionData
+                    calculateAndApply(sessionData, userId)
+                }
             }
         }
 

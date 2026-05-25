@@ -8,7 +8,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.gachon.janjan.R
 import com.gachon.janjan.data.model.MenuItem
-import com.gachon.janjan.databinding.ItemMenuBinding
+import com.gachon.janjan.databinding.ItemBinding
 
 class MenuAdapter(
     private val onPlusClick: (String) -> Unit,
@@ -16,7 +16,7 @@ class MenuAdapter(
 ) : ListAdapter<MenuItem, MenuAdapter.MenuViewHolder>(DiffCallback) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MenuViewHolder {
-        val binding = ItemMenuBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        val binding = ItemBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return MenuViewHolder(binding)
     }
 
@@ -24,7 +24,7 @@ class MenuAdapter(
         holder.bind(getItem(position))
     }
 
-    inner class MenuViewHolder(private val binding: ItemMenuBinding) : RecyclerView.ViewHolder(binding.root) {
+    inner class MenuViewHolder(private val binding: ItemBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: MenuItem) {
             binding.apply {
                 tvMenuName.text = item.name

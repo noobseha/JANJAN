@@ -86,8 +86,8 @@ class OrderFragment : Fragment(R.layout.fragment_order) {
 
         // 주문하기 버튼 클릭 후 status 화면으로 이동
         binding.btnOrder.setOnClickListener {
-            // 🔥🔥 임시 Id임. 바꿔야함.
-            val currentUserId = "user_123"
+            val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            val currentUserId = currentUser?.uid ?: "anonymous"
             viewModel.submitOrder(currentUserId)
         }
 

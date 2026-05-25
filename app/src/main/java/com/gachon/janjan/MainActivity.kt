@@ -16,30 +16,40 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContentView(R.layout.activity_main)
 
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-        val testData = hashMapOf("status" to "연결 성공")
-        if (savedInstanceState == null) {
-            supportFragmentManager.beginTransaction()
-                .replace(R.id.fragment_container, OrderFragment())
-                .commit()
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        loadFragment(StoreProfileFragment())
-        binding.bottomNavigation.selectedItemId = R.id.nav_profile
+        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        val testData = hashMapOf("status" to "연결 성공")
 
-        binding.bottomNavigation.setOnItemSelectedListener { item ->
-            val fragment: Fragment = when (item.itemId) {
-                R.id.nav_table -> TableFragment()
-                R.id.nav_menu -> MenuFragment()
-                R.id.nav_statistics -> StatisticsFragment()
-                R.id.nav_profile -> StoreProfileFragment()
-                else -> StoreProfileFragment()
+        val userType = intent.getStringExtra("userType") ?: "personal"
+
+        if (userType == "business") {
+            binding.bottomNavigation.visibility = android.view.View.VISIBLE
+            binding.fragmentContainer.visibility = android.view.View.VISIBLE
+            binding.navHostFragment.visibility = android.view.View.GONE
+
+            if (savedInstanceState == null) {
+                loadFragment(StoreProfileFragment())
             }
-            loadFragment(fragment)
-            true
+            binding.bottomNavigation.selectedItemId = R.id.nav_profile
+
+            binding.bottomNavigation.setOnItemSelectedListener { item ->
+                val fragment: Fragment = when (item.itemId) {
+                    R.id.nav_table -> TableFragment()
+                    R.id.nav_menu -> MenuFragment()
+                    R.id.nav_statistics -> StatisticsFragment()
+                    R.id.nav_profile -> StoreProfileFragment()
+                    else -> StoreProfileFragment()
+                }
+                loadFragment(fragment)
+                true
+            }
+        } else {
+            binding.bottomNavigation.visibility = android.view.View.GONE
+            binding.fragmentContainer.visibility = android.view.View.GONE
+            binding.navHostFragment.visibility = android.view.View.VISIBLE
         }
     }
 
@@ -50,8 +60,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun navigateToNotification() {
+        val containerId = if (binding.fragmentContainer.visibility == android.view.View.VISIBLE) {
+            R.id.fragment_container
+        } else {
+            R.id.nav_host_fragment
+        }
         supportFragmentManager.beginTransaction()
-            .replace(R.id.fragment_container, NotificationFragment())
+            .replace(containerId, NotificationFragment())
             .addToBackStack(null)
             .commit()
     }
