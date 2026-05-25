@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_table"
+        android:icon="@android:drawable/ic_dialog_dialer"
+        android:title="테이블" />
+    <item
+        android:id="@+id/nav_menu"
+        android:icon="@android:drawable/ic_menu_agenda"
+        android:title="메뉴" />
+    <item
+        android:id="@+id/nav_statistics"
+        android:icon="@android:drawable/ic_menu_sort_by_size"
+        android:title="통계" />
+    <item
+        android:id="@+id/nav_profile"
+        android:icon="@android:drawable/ic_menu_myplaces"
+        android:title="프로필" />
+</menu>

@@ -1,88 +1,80 @@
-<androidx.cardview.widget.CardView
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="16dp"
-    android:layout_marginVertical="8dp"
-    app:cardBackgroundColor="#E6F7F2"
-    app:cardCornerRadius="20dp"
-    app:cardElevation="0dp">
+    android:orientation="horizontal"
+    android:padding="12dp"
+    android:background="@android:color/white"
+    android:layout_marginBottom="8dp">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:layout_width="match_parent"
-        android:layout_height="120dp">
+    <ImageView
+        android:id="@+id/iv_menu_image"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:scaleType="centerCrop"
+        android:src="@mipmap/ic_launcher"/>
 
-        <ImageView
-            android:id="@+id/ivMenu"
-            android:layout_width="120dp"
-            android:layout_height="match_parent"
-            android:scaleType="centerCrop"
-            android:src="@drawable/img_soju"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <TextView
-            android:id="@+id/tvMenuName"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginTop="16dp"
-            android:layout_marginEnd="16dp"
-            android:text="소주"
-            android:textColor="#333333"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/ivMenu"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <TextView
-            android:id="@+id/tvMenuPrice"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="5,000원"
-            android:textColor="#6ED7BB"
-            android:textSize="16sp"
-            app:layout_constraintStart_toStartOf="@id/tvMenuName"
-            app:layout_constraintTop_toBottomOf="@id/tvMenuName" />
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:layout_marginStart="12dp">
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="16dp"
-            android:layout_marginBottom="16dp"
-            android:gravity="center"
-            android:orientation="horizontal"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="@id/tvMenuName">
-
-            <ImageButton
-                android:id="@+id/btnMinus"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:background="@drawable/bg_circle_button"
-                android:src="@drawable/ic_minus"
-                app:tint="#6ED7BB" />
+            android:orientation="horizontal">
 
             <TextView
-                android:id="@+id/tvQuantity"
-                android:layout_width="40dp"
+                android:id="@+id/tv_menu_name"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:gravity="center"
-                android:text="0"
-                android:textColor="#CCCCCC"
-                android:textSize="18sp" />
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:text="메뉴명"/>
 
-            <ImageButton
-                android:id="@+id/btnPlus"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:background="@drawable/bg_circle_button"
-                android:src="@drawable/ic_plus"
-                app:tint="#6ED7BB" />
+            <TextView
+                android:id="@+id/tv_sold_out"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="품절"
+                android:textColor="#FF0000"
+                android:textSize="12sp"
+                android:layout_marginStart="8dp"
+                android:visibility="gone"/>
+
         </LinearLayout>
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
-</androidx.cardview.widget.CardView>
+        <TextView
+            android:id="@+id/tv_menu_price"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#4DB6AC"
+            android:text="0원"/>
+
+        <TextView
+            android:id="@+id/tv_menu_category"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#999999"
+            android:textSize="12sp"
+            android:text="카테고리"/>
+
+    </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/btn_edit"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:src="@android:drawable/ic_menu_edit"
+        android:background="?attr/selectableItemBackgroundBorderless"/>
+
+    <ImageButton
+        android:id="@+id/btn_delete"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:src="@android:drawable/ic_menu_delete"
+        android:background="?attr/selectableItemBackgroundBorderless"/>
+
+</LinearLayout>
