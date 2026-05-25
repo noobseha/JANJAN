@@ -25,7 +25,7 @@
             android:layout_height="100dp"
             android:layout_gravity="center_horizontal"
             android:layout_marginBottom="8dp"
-            android:src="@mipmap/ic_launcher"
+            android:src="@drawable/janjan_logo"
             android:scaleType="centerCrop" />
 
         <TextView

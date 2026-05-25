@@ -1,6 +1,7 @@
 package com.gachon.janjan
 
 import android.app.AlertDialog
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -129,7 +130,6 @@ class TableFragment : Fragment() {
             .delete()
             .addOnSuccessListener {
                 tableList.remove(table)
-                // 번호 재정렬
                 tableList.forEachIndexed { index, t ->
                     db.collection("stores").document(uid)
                         .collection("tables").document(t.id)
@@ -185,8 +185,9 @@ class TableFragment : Fragment() {
     }
 
     private fun showTableDetail(table: StoreTable) {
-        Toast.makeText(requireContext(), "${table.tableNumber}번 테이블", Toast.LENGTH_SHORT).show()
-        // 나중에 담당자4 파트 완성되면 결제현황 화면으로 연결
+        val intent = Intent(requireContext(), SettlementActivity::class.java)
+        intent.putExtra("tableId", table.tableNumber)
+        startActivity(intent)
     }
 
     override fun onDestroyView() {
