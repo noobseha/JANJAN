@@ -11,11 +11,13 @@ import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
 import com.gachon.janjan.R
 import com.gachon.janjan.domain.session.viewmodel.HistoryHealthViewModel
+import com.gachon.janjan.domain.session.viewmodel.RankingViewModel
 import com.gachon.janjan.domain.session.viewmodel.SessionViewModel
 
 class SessionHomeFragment : Fragment() {
     private val sessionViewModel: SessionViewModel by activityViewModels()
     private val historyHealthViewModel: HistoryHealthViewModel by activityViewModels()
+    private val rankingViewModel: RankingViewModel by activityViewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -27,6 +29,7 @@ class SessionHomeFragment : Fragment() {
             SessionHomeScreen(
                 sessionViewModel = sessionViewModel,
                 historyHealthViewModel = historyHealthViewModel,
+                rankingViewModel = rankingViewModel,
                 onQrScan = { findNavController().navigate(R.id.qrScanFragment) },
                 onInviteCode = { findNavController().navigate(R.id.inviteCodeFragment) },
                 onOrder = {

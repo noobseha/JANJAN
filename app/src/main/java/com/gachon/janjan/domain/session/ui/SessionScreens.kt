@@ -103,6 +103,7 @@ import com.gachon.janjan.domain.session.model.OrderSummaryItem
 import com.gachon.janjan.domain.session.model.SessionParticipant
 import com.gachon.janjan.domain.session.model.UserProfile
 import com.gachon.janjan.domain.session.viewmodel.HistoryHealthViewModel
+import com.gachon.janjan.domain.session.viewmodel.RankingViewModel
 import com.gachon.janjan.domain.session.viewmodel.SessionViewModel
 import kotlinx.coroutines.delay
 import java.text.DecimalFormat
@@ -127,6 +128,7 @@ private val currency = DecimalFormat("#,###")
 fun SessionHomeScreen(
     sessionViewModel: SessionViewModel,
     historyHealthViewModel: HistoryHealthViewModel,
+    rankingViewModel: RankingViewModel,
     onQrScan: () -> Unit,
     onInviteCode: () -> Unit,
     onOrder: () -> Unit,
@@ -190,7 +192,7 @@ fun SessionHomeScreen(
                     contentAlignment = Alignment.TopCenter
                 ) {
                     when (tab) {
-                        "ranking" -> RankingPlaceholder()
+                        "ranking" -> RankingScreen(rankingViewModel = rankingViewModel)
                         "profile" -> ProfileScreen(
                             histories = histories,
                             healthSummary = healthSummary,
