@@ -16,8 +16,15 @@ import com.gachon.janjan.databinding.FragmentTableBinding
 import com.gachon.janjan.domain.owner.model.BusinessTable
 import com.gachon.janjan.domain.owner.repository.BusinessCameraRepository
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.Timestamp
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.launch
+import java.util.Calendar
+import java.util.Locale
 
 class TableFragment : Fragment() {
 
@@ -29,9 +36,16 @@ class TableFragment : Fragment() {
     private lateinit var adapter: TableAdapter
     private var isSettingMode = false
     private var tableList = mutableListOf<StoreTable>()
+    private var currentStoreName = ""
+    private var tableListener: ListenerRegistration? = null
+    private var todaySalesListener: ListenerRegistration? = null
+    private val sessionListeners = mutableMapOf<String, ListenerRegistration>()
+    private val sessionSummaries = mutableMapOf<String, TableSessionSummary>()
+    private var todayClosedSales = 0
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
+        inflater: LayoutInflater,
+        container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
         _binding = FragmentTableBinding.inflate(inflater, container, false)
@@ -55,110 +69,204 @@ class TableFragment : Fragment() {
 
         binding.btnSettings.setOnClickListener {
             isSettingMode = !isSettingMode
-            if (isSettingMode) {
-                binding.btnSettings.setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
-            } else {
-                binding.btnSettings.setImageResource(android.R.drawable.ic_menu_preferences)
-            }
+            binding.btnSettings.setImageResource(
+                if (isSettingMode) {
+                    R.drawable.ic_close_modern
+                } else {
+                    R.drawable.ic_tune_modern
+                }
+            )
             refreshAdapter()
         }
 
-        binding.btnEditName.setOnClickListener {
-            showEditNameDialog()
-        }
+        binding.ivStoreImage.setOnClickListener { navigateToStoreProfile() }
+        binding.layoutStoreProfile.setOnClickListener { navigateToStoreProfile() }
+        binding.btnEditName.setOnClickListener { navigateToStoreProfile() }
 
-        loadStoreInfo()
         loadTables()
-    }
-
-    private fun loadStoreInfo() {
-        val uid = auth.currentUser?.uid ?: return
-        db.collection("stores").document(uid).get()
-            .addOnSuccessListener { doc ->
-                binding.tvStoreName.text = doc.getString("name") ?: "가게 이름"
-            }
     }
 
     private fun loadTables() {
         val uid = auth.currentUser?.uid ?: return
-        db.collection("stores").document(uid)
-            .collection("tables")
-            .orderBy("tableNumber")
-            .get()
-            .addOnSuccessListener { result ->
-                tableList = if (result.isEmpty) {
-                    defaultTables()
-                } else {
-                    result.documents.mapNotNull { doc ->
-                        val tableNumber = doc.getLong("tableNumber")?.toInt()
-                            ?: doc.getString("tableNumber")?.toIntOrNull()
-                            ?: doc.id.filter { it.isDigit() }.toIntOrNull()
-                            ?: return@mapNotNull null
-                        StoreTable(
-                            id = doc.getString("tableId").orEmpty().ifBlank { doc.id },
-                            tableNumber = tableNumber,
-                            ipAddress = doc.getString("cameraIp")
-                                ?: doc.getString("ipAddress")
-                                ?: "",
-                            isActive = doc.getBoolean("isActive") ?: true,
-                            activeSessionId = doc.getString("activeSessionId").orEmpty(),
-                            inviteCode = doc.getString("inviteCode").orEmpty()
+        val storeRef = db.collection("stores").document(uid)
+
+        tableListener?.remove()
+        tableListener = null
+        storeRef.get()
+            .addOnSuccessListener { storeDoc ->
+                if (_binding == null) return@addOnSuccessListener
+                currentStoreName = storeDoc.getString("name").orEmpty().ifBlank { "가게 이름" }
+                binding.tvStoreName.text = currentStoreName
+                listenTodayClosedSales(uid)
+
+                tableListener = storeRef.collection("tables")
+                    .orderBy("tableNumber")
+                    .addSnapshotListener { result, error ->
+                        if (_binding == null) return@addSnapshotListener
+                        if (error != null) {
+                            Toast.makeText(requireContext(), "테이블 조회 실패: ${error.message}", Toast.LENGTH_SHORT).show()
+                            return@addSnapshotListener
+                        }
+                        if (result == null) return@addSnapshotListener
+
+                        if (result.isEmpty) {
+                            createDefaultTables(uid, currentStoreName)
+                            return@addSnapshotListener
+                        }
+
+                        tableList = result.documents.mapNotNull { doc ->
+                            val tableNumber = doc.getLong("tableNumber")?.toInt()
+                                ?: doc.getString("tableNumber")?.toIntOrNull()
+                                ?: doc.id.filter { it.isDigit() }.toIntOrNull()
+                                ?: return@mapNotNull null
+                            StoreTable(
+                                id = doc.getString("tableId").orEmpty().ifBlank { doc.id },
+                                tableNumber = tableNumber,
+                                ipAddress = doc.getString("cameraIp")
+                                    ?: doc.getString("ipAddress")
+                                    ?: "",
+                                isActive = doc.getBoolean("isActive") ?: true,
+                                activeSessionId = doc.getString("activeSessionId").orEmpty(),
+                                inviteCode = doc.getString("inviteCode").orEmpty()
+                            )
+                        }.sortedBy { it.tableNumber }.toMutableList()
+
+                        storeRef.set(
+                            mapOf(
+                                "tableCount" to tableList.size,
+                                "updatedAt" to FieldValue.serverTimestamp()
+                            ),
+                            SetOptions.merge()
                         )
-                    }.sortedBy { it.tableNumber }.toMutableList()
-                }
-                binding.tvTableCount.text = "테이블 현황 (${tableList.size}개)"
-                binding.tvTableStatus.text = "${tableList.count { it.activeSessionId.isNotBlank() }} / ${tableList.size}"
-                refreshAdapter()
+                        updateSessionListeners(tableList.map { it.activeSessionId }.filter { it.isNotBlank() }.toSet())
+                        updateTableHeader()
+                        refreshAdapter()
+                    }
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(requireContext(), "가게 정보 조회 실패: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun createDefaultTables(storeId: String, storeName: String) {
+        val storeRef = db.collection("stores").document(storeId)
+        val now = FieldValue.serverTimestamp()
+        val batch = db.batch()
+        val inviteCodes = mutableSetOf<String>()
+
+        (1..3).forEach { tableNumber ->
+            val inviteCode = TableInviteCodes.generate(inviteCodes)
+            inviteCodes += inviteCode
+            val tableId = "table_$tableNumber"
+            batch.set(
+                storeRef.collection("tables").document(tableId),
+                tablePayload(
+                    storeId = storeId,
+                    storeName = storeName,
+                    tableId = tableId,
+                    tableNumber = tableNumber,
+                    inviteCode = inviteCode,
+                    now = now
+                ),
+                SetOptions.merge()
+            )
+        }
+
+        batch.set(
+            storeRef,
+            mapOf(
+                "tableCount" to 3,
+                "updatedAt" to now
+            ),
+            SetOptions.merge()
+        )
+        batch.commit()
+            .addOnSuccessListener { }
+            .addOnFailureListener { e ->
+                Toast.makeText(requireContext(), "기본 테이블 생성 실패: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
     private fun refreshAdapter() {
-        adapter.updateItems(tableList, isSettingMode)
+        adapter.updateItems(tableList.withSessionSummaries(), isSettingMode)
+    }
+
+    private fun updateTableHeader() {
+        binding.tvTableCount.text = "테이블 현황 (${tableList.size}개)"
+        binding.tvTableStatus.text = "${tableList.count { it.activeSessionId.isNotBlank() }} / ${tableList.size}"
+        binding.tvTodaySales.text = "${String.format(Locale.KOREA, "%,d", todayClosedSales)}원"
     }
 
     private fun addTable() {
         val uid = auth.currentUser?.uid ?: return
-        val storeName = binding.tvStoreName.text.toString().ifBlank { "가게 이름" }
+        val storeName = currentStoreName.ifBlank { binding.tvStoreName.text.toString().ifBlank { "가게 이름" } }
         val newNumber = (tableList.maxOfOrNull { it.tableNumber } ?: 0) + 1
         val tableId = "table_$newNumber"
-        val tableData = hashMapOf(
-            "storeId" to uid,
-            "storeName" to storeName,
-            "tableId" to tableId,
-            "tableNumber" to newNumber,
-            "ipAddress" to "",
-            "isActive" to true
+        val inviteCode = TableInviteCodes.generate(tableList.map { it.inviteCode }.toSet())
+        val now = FieldValue.serverTimestamp()
+        val storeRef = db.collection("stores").document(uid)
+
+        val batch = db.batch()
+        batch.set(
+            storeRef.collection("tables").document(tableId),
+            tablePayload(
+                storeId = uid,
+                storeName = storeName,
+                tableId = tableId,
+                tableNumber = newNumber,
+                inviteCode = inviteCode,
+                now = now
+            ),
+            SetOptions.merge()
         )
-        db.collection("stores").document(uid)
-            .collection("tables").document(tableId)
-            .set(tableData)
-            .addOnSuccessListener {
-                loadTables()
+        batch.set(
+            storeRef,
+            mapOf(
+                "tableCount" to tableList.size + 1,
+                "updatedAt" to now
+            ),
+            SetOptions.merge()
+        )
+        batch.commit()
+            .addOnSuccessListener { }
+            .addOnFailureListener { e ->
+                Toast.makeText(requireContext(), "테이블 추가 실패: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
     private fun showDeleteDialog(table: StoreTable) {
         AlertDialog.Builder(requireContext())
             .setTitle("테이블 삭제")
-            .setMessage("${table.tableNumber}번 테이블을 삭제하시겠습니까?")
+            .setMessage("${table.tableNumber}번 테이블을 삭제할까요?")
             .setPositiveButton("확인") { _, _ -> deleteTable(table) }
             .setNegativeButton("취소", null)
             .show()
     }
 
     private fun deleteTable(table: StoreTable) {
+        if (table.activeSessionId.isNotBlank()) {
+            Toast.makeText(requireContext(), "사용 중인 테이블은 세션 종료 후 삭제할 수 있어요.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         val uid = auth.currentUser?.uid ?: return
-        db.collection("stores").document(uid)
-            .collection("tables").document(table.id)
-            .delete()
-            .addOnSuccessListener {
-                tableList.remove(table)
-                tableList.forEachIndexed { index, t ->
-                    db.collection("stores").document(uid)
-                        .collection("tables").document(t.id)
-                        .update("tableNumber", index + 1)
-                }
-                loadTables()
+        val storeRef = db.collection("stores").document(uid)
+        val now = FieldValue.serverTimestamp()
+
+        val batch = db.batch()
+        batch.delete(storeRef.collection("tables").document(table.id))
+        batch.set(
+            storeRef,
+            mapOf(
+                "tableCount" to (tableList.size - 1).coerceAtLeast(0),
+                "updatedAt" to now
+            ),
+            SetOptions.merge()
+        )
+        batch.commit()
+            .addOnSuccessListener { }
+            .addOnFailureListener { e ->
+                Toast.makeText(requireContext(), "테이블 삭제 실패: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
@@ -169,7 +277,7 @@ class TableFragment : Fragment() {
         }
         val ipEditText = EditText(requireContext()).apply {
             setText(table.ipAddress)
-            hint = "예) 192.168.0.101"
+            hint = "예: 192.168.0.101"
         }
         val streamEditText = EditText(requireContext()).apply {
             hint = "스트림 URL (선택)"
@@ -183,9 +291,9 @@ class TableFragment : Fragment() {
                 val uid = auth.currentUser?.uid ?: return@setPositiveButton
                 val ip = ipEditText.text.toString().trim()
                 val streamUrl = streamEditText.text.toString().trim()
-                val storeName = binding.tvStoreName.text.toString().ifBlank { "가게 이름" }
+                val storeName = currentStoreName.ifBlank { binding.tvStoreName.text.toString().ifBlank { "가게 이름" } }
                 if (ip.isBlank()) {
-                    Toast.makeText(requireContext(), "IP를 입력해주세요", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "IP를 입력해 주세요.", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
                 viewLifecycleOwner.lifecycleScope.launch {
@@ -200,8 +308,7 @@ class TableFragment : Fragment() {
                             ownerUserId = uid
                         )
                     }.onSuccess {
-                        Toast.makeText(requireContext(), "테이블 카메라가 매핑되었습니다", Toast.LENGTH_SHORT).show()
-                        loadTables()
+                        Toast.makeText(requireContext(), "테이블 카메라가 매핑되었습니다.", Toast.LENGTH_SHORT).show()
                     }.onFailure {
                         Toast.makeText(
                             requireContext(),
@@ -217,40 +324,66 @@ class TableFragment : Fragment() {
 
     private fun showEditNameDialog() {
         val editText = EditText(requireContext()).apply {
-            hint = "새 업장 이름"
+            hint = "매장 이름"
+            setText(currentStoreName)
         }
         AlertDialog.Builder(requireContext())
-            .setTitle("업장 이름 변경")
+            .setTitle("매장 이름 변경")
             .setView(editText)
             .setPositiveButton("저장") { _, _ ->
                 val uid = auth.currentUser?.uid ?: return@setPositiveButton
                 val name = editText.text.toString().trim()
                 if (name.isEmpty()) return@setPositiveButton
                 db.collection("stores").document(uid)
-                    .update("name", name)
+                    .set(
+                        mapOf(
+                            "name" to name,
+                            "updatedAt" to FieldValue.serverTimestamp()
+                        ),
+                        SetOptions.merge()
+                    )
                     .addOnSuccessListener {
+                        currentStoreName = name
                         binding.tvStoreName.text = name
-                        Toast.makeText(requireContext(), "업장 이름이 변경되었습니다", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(requireContext(), "매장 이름이 변경되었습니다.", Toast.LENGTH_SHORT).show()
                     }
             }
             .setNegativeButton("취소", null)
             .show()
     }
 
+    private fun navigateToStoreProfile() {
+        (activity as? MainActivity)?.navigateToBusinessProfile()
+    }
+
     private fun showTableDetail(table: StoreTable) {
         val intent = Intent(requireContext(), SettlementActivity::class.java)
         intent.putExtra("tableId", table.tableNumber)
+        intent.putExtra("tableDocId", table.id)
+        intent.putExtra("sessionId", table.activeSessionId)
+        intent.putExtra("storeId", auth.currentUser?.uid.orEmpty())
         startActivity(intent)
     }
 
-    private fun defaultTables(): MutableList<StoreTable> =
-        (1..9).map { number ->
-            StoreTable(
-                id = "table_$number",
-                tableNumber = number,
-                isActive = true
-            )
-        }.toMutableList()
+    private fun tablePayload(
+        storeId: String,
+        storeName: String,
+        tableId: String,
+        tableNumber: Int,
+        inviteCode: String,
+        now: Any
+    ): Map<String, Any?> = mapOf(
+        "storeId" to storeId,
+        "storeName" to storeName,
+        "tableId" to tableId,
+        "tableNumber" to tableNumber,
+        "label" to "${tableNumber}번 테이블",
+        "inviteCode" to inviteCode,
+        "activeSessionId" to "",
+        "isActive" to true,
+        "createdAt" to now,
+        "updatedAt" to now
+    )
 
     private fun StoreTable.toBusinessTable(storeId: String, storeName: String): BusinessTable =
         BusinessTable(
@@ -262,8 +395,109 @@ class TableFragment : Fragment() {
             activeSessionId = activeSessionId
         )
 
+    private fun updateSessionListeners(activeSessionIds: Set<String>) {
+        val removedSessionIds = sessionListeners.keys.filter { it !in activeSessionIds }
+        removedSessionIds.forEach { sessionId ->
+            sessionListeners.remove(sessionId)?.remove()
+            sessionSummaries.remove(sessionId)
+        }
+
+        activeSessionIds
+            .filter { it !in sessionListeners }
+            .forEach { sessionId ->
+                sessionListeners[sessionId] = db.collection("sessions").document(sessionId)
+                    .addSnapshotListener { snapshot, _ ->
+                        if (_binding == null) return@addSnapshotListener
+                        sessionSummaries[sessionId] = snapshot?.toTableSessionSummary()
+                            ?: TableSessionSummary()
+                        updateTableHeader()
+                        refreshAdapter()
+                    }
+            }
+    }
+
+    private fun listenTodayClosedSales(storeId: String) {
+        todaySalesListener?.remove()
+        todaySalesListener = db.collection("sessions")
+            .whereEqualTo("storeId", storeId)
+            .whereEqualTo("status", "closed")
+            .addSnapshotListener { snapshot, _ ->
+                if (_binding == null) return@addSnapshotListener
+                val todayStartMs = Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }.timeInMillis
+                todayClosedSales = snapshot?.documents
+                    ?.filter { (it.salesTimeMs() ?: 0L) >= todayStartMs }
+                    ?.sumOf { it.toTableSessionSummary().totalPrice }
+                    ?: 0
+                updateTableHeader()
+            }
+    }
+
+    private fun List<StoreTable>.withSessionSummaries(): List<StoreTable> =
+        map { table ->
+            val summary = sessionSummaries[table.activeSessionId]
+            if (summary == null) {
+                table.copy(currentAmount = 0, sojuDrinkCount = 0, beerDrinkCount = 0)
+            } else {
+                table.copy(
+                    currentAmount = summary.totalPrice,
+                    sojuDrinkCount = summary.totalSojuDrinkCount,
+                    beerDrinkCount = summary.totalBeerDrinkCount
+                )
+            }
+        }
+
+    private fun DocumentSnapshot.toTableSessionSummary(): TableSessionSummary {
+        val totalPrice = getIntValue("totalPrice").takeIf { it > 0 }
+            ?: (getIntValue("totalSojuPrice") + getIntValue("totalBeerPrice") + getIntValue("totalFoodPrice"))
+                .takeIf { it > 0 }
+            ?: getIntValue("totalAmount")
+        return TableSessionSummary(
+            totalPrice = totalPrice,
+            totalSojuDrinkCount = getIntValue("totalSojuDrinkCount"),
+            totalBeerDrinkCount = getIntValue("totalBeerDrinkCount")
+        )
+    }
+
+    private fun DocumentSnapshot.salesTimeMs(): Long? =
+        timestampMs("salesRecordedAt")
+            ?: timestampMs("endedAt")
+            ?: timestampMs("updatedAt")
+
+    private fun DocumentSnapshot.timestampMs(field: String): Long? =
+        when (val value = get(field)) {
+            is Timestamp -> value.toDate().time
+            is Number -> value.toLong()
+            is String -> value.toLongOrNull()
+            else -> null
+        }
+
+    private fun DocumentSnapshot.getIntValue(field: String): Int =
+        when (val value = get(field)) {
+            is Number -> value.toInt()
+            is String -> value.toIntOrNull() ?: 0
+            else -> 0
+        }
+
+    private data class TableSessionSummary(
+        val totalPrice: Int = 0,
+        val totalSojuDrinkCount: Int = 0,
+        val totalBeerDrinkCount: Int = 0
+    )
+
     override fun onDestroyView() {
         super.onDestroyView()
+        tableListener?.remove()
+        todaySalesListener?.remove()
+        tableListener = null
+        todaySalesListener = null
+        sessionListeners.values.forEach { it.remove() }
+        sessionListeners.clear()
+        sessionSummaries.clear()
         _binding = null
     }
 }

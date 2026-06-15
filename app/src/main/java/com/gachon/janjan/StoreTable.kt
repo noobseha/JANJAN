@@ -6,5 +6,8 @@ data class StoreTable(
     val ipAddress: String = "",
     val isActive: Boolean = true,
     val activeSessionId: String = "",
-    val inviteCode: String = ""
+    val inviteCode: String = "",
+    val currentAmount: Int = 0,
+    val sojuDrinkCount: Int = 0,
+    val beerDrinkCount: Int = 0
 )

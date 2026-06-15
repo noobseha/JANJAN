@@ -1,0 +1,46 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function validCvFrame() {
+      return request.resource.data.cameraId is string
+        && request.resource.data.frameWidth is number
+        && request.resource.data.frameHeight is number
+        && request.resource.data.detections is list;
+    }
+
+    match /cameraDevices/{deviceId} {
+      allow read, create, update: if signedIn();
+      allow delete: if false;
+    }
+
+    match /stores/{storeId}/tables/{tableId} {
+      allow read, create, update: if signedIn();
+      allow delete: if false;
+    }
+
+    match /stores/{storeId}/tableCameraMappings/{mappingId} {
+      allow read, create, update: if signedIn();
+      allow delete: if false;
+    }
+
+    match /sessions/{sessionId}/cvFrames/{frameId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && validCvFrame();
+      allow update, delete: if false;
+    }
+
+    match /sessions/{sessionId}/cvPairStates/{pairId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if signedIn();
+    }
+  }
+}

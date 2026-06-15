@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -68,6 +69,7 @@ private val OwnerText = Color(0xFF1A1A1E)
 private val OwnerSub = Color(0xFF6B7280)
 private val OwnerMuted = Color(0xFFF0F7F5)
 private val OwnerWarn = Color(0xFFF59E0B)
+private val OwnerBlue = Color(0xFF3B82F6)
 
 @Composable
 fun BusinessOwnerScreen(
@@ -93,99 +95,123 @@ fun BusinessOwnerScreen(
     }
 
     Surface(modifier = Modifier.fillMaxSize(), color = Color.White) {
-        Scaffold(containerColor = Color.White) { innerPadding ->
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .widthIn(max = 520.dp),
-                contentPadding = PaddingValues(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                item {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로", tint = OwnerText)
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("사업자 테이블 관리", color = OwnerText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                            Text("카메라 연결 · 실시간 인식", color = OwnerSub, fontSize = 13.sp)
-                        }
-                    }
-                }
-
-                item {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = OwnerBg),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth()
+        BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+            val contentMaxWidth = when {
+                maxWidth < 360.dp -> maxWidth
+                maxWidth < 600.dp -> 520.dp
+                maxWidth < 840.dp -> 640.dp
+                else -> 720.dp
+            }
+            val horizontalPadding = when {
+                maxWidth < 360.dp -> 16.dp
+                maxWidth < 600.dp -> 24.dp
+                else -> 28.dp
+            }
+            val tableColumns = when {
+                maxWidth < 360.dp -> 2
+                maxWidth < 720.dp -> 3
+                else -> 4
+            }
+            Scaffold(containerColor = Color.White) { innerPadding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentAlignment = Alignment.TopCenter
+                ) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .widthIn(max = contentMaxWidth),
+                        contentPadding = PaddingValues(horizontalPadding),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            OutlinedTextField(
-                                value = editableStoreId,
-                                onValueChange = { editableStoreId = it },
-                                label = { Text("매장 ID") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                colors = ownerTextFieldColors()
-                            )
-                            OutlinedTextField(
-                                value = editableStoreName,
-                                onValueChange = { editableStoreName = it },
-                                label = { Text("매장명") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                colors = ownerTextFieldColors()
-                            )
-                            Button(
-                                onClick = { viewModel.loadStore(editableStoreId, editableStoreName) },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = OwnerMint),
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Text("매장 불러오기", fontWeight = FontWeight.Bold)
+                        item {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(onClick = onBack) {
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로", tint = OwnerText)
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("사업자 테이블 관리", color = OwnerText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                                    Text("카메라 연결 · 실시간 인식", color = OwnerSub, fontSize = 13.sp)
+                                }
                             }
                         }
-                    }
-                }
 
-                message?.let { text ->
-                    item {
-                        Text(
-                            text = text,
-                            color = OwnerText,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(OwnerMuted)
-                                .padding(12.dp),
-                            fontSize = 13.sp
-                        )
-                    }
-                }
+                        item {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = OwnerBg),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    OutlinedTextField(
+                                        value = editableStoreId,
+                                        onValueChange = { editableStoreId = it },
+                                        label = { Text("매장 ID") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        singleLine = true,
+                                        colors = ownerTextFieldColors()
+                                    )
+                                    OutlinedTextField(
+                                        value = editableStoreName,
+                                        onValueChange = { editableStoreName = it },
+                                        label = { Text("매장명") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        singleLine = true,
+                                        colors = ownerTextFieldColors()
+                                    )
+                                    Button(
+                                        onClick = { viewModel.loadStore(editableStoreId, editableStoreName) },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(48.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = OwnerMint),
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Text("매장 불러오기", fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
 
-                item {
-                    Text("테이블", color = OwnerText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                }
-
-                tables.chunked(3).forEach { rowTables ->
-                    item {
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            rowTables.forEach { table ->
-                                OwnerTableTile(
-                                    table = table,
-                                    mapping = mappings.firstOrNull { it.tableId == table.tableId },
-                                    modifier = Modifier.weight(1f),
-                                    onClick = { viewModel.selectTable(table) }
+                        message?.let { text ->
+                            item {
+                                Text(
+                                    text = text,
+                                    color = OwnerText,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(OwnerMuted)
+                                        .padding(12.dp),
+                                    fontSize = 13.sp
                                 )
                             }
-                            repeat(3 - rowTables.size) {
-                                Spacer(modifier = Modifier.weight(1f))
+                        }
+
+                        item {
+                            Text("테이블", color = OwnerText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        tables.chunked(tableColumns).forEach { rowTables ->
+                            item {
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    rowTables.forEach { table ->
+                                        OwnerTableTile(
+                                            table = table,
+                                            mapping = mappings.firstOrNull { it.tableId == table.tableId },
+                                            modifier = Modifier.weight(1f),
+                                            onClick = { viewModel.selectTable(table) }
+                                        )
+                                    }
+                                    repeat(tableColumns - rowTables.size) {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                }
                             }
                         }
                     }
@@ -216,7 +242,28 @@ private fun OwnerTableTile(
     onClick: () -> Unit
 ) {
     val active = mapping?.isActive == true
-    val statusColor = if (active) OwnerMint else OwnerWarn
+    val status = mapping?.cameraStatus.orEmpty()
+    val statusColor = when (status) {
+        "recognizing" -> OwnerMint
+        "waiting" -> OwnerBlue
+        "activationRequested" -> OwnerWarn
+        else -> if (active) OwnerMint else OwnerWarn
+    }
+    val statusLabel = when (status) {
+        "recognizing" -> "인식 중"
+        "waiting" -> "대기 중"
+        "activationRequested" -> "연결 요청"
+        else -> if (active) "연결됨" else "미연결"
+    }
+    val cameraInfo = if (mapping == null) {
+        "카메라 정보 없음"
+    } else {
+        mapping.cameraDeviceId.ifBlank { mapping.cameraIp }.ifBlank { "카메라 정보 없음" }
+    }
+    val sessionInfo = mapping?.effectiveSessionId
+        ?.ifBlank { table.activeSessionId }
+        ?.ifBlank { "세션 대기" }
+        ?: "세션 대기"
     Card(
         modifier = modifier
             .aspectRatio(1f)
@@ -260,17 +307,17 @@ private fun OwnerTableTile(
                             .background(statusColor)
                     )
                     Spacer(Modifier.width(5.dp))
-                    Text(if (active) "연결 요청" else "미연결", color = OwnerSub, fontSize = 11.sp)
+                    Text(statusLabel, color = OwnerSub, fontSize = 11.sp)
                 }
                 Text(
-                    mapping?.cameraIp?.ifBlank { "IP 없음" } ?: "IP 없음",
+                    cameraInfo,
                     color = OwnerSub,
                     fontSize = 11.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    mapping?.sessionId?.ifBlank { table.activeSessionId }?.ifBlank { "세션 대기" } ?: "세션 대기",
+                    sessionInfo,
                     color = OwnerSub,
                     fontSize = 11.sp,
                     maxLines = 1,

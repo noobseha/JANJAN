@@ -2,13 +2,17 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fillViewport="true"
     android:background="#F5F5F5">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:paddingStart="@dimen/screen_horizontal_padding"
+        android:paddingTop="@dimen/screen_vertical_padding"
+        android:paddingEnd="@dimen/screen_horizontal_padding"
+        android:paddingBottom="@dimen/screen_vertical_padding">
 
         <!-- 헤더 -->
         <LinearLayout
@@ -103,31 +107,61 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:layout_marginBottom="24dp">
 
-            <Button
-                android:id="@+id/btn_soju"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="주류"
-                android:layout_marginEnd="8dp"
-                android:textSize="13sp"/>
+                android:layout_marginBottom="10dp"
+                android:orientation="horizontal">
 
-            <Button
-                android:id="@+id/btn_food"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="안주"
-                android:layout_marginEnd="8dp"
-                android:textSize="13sp"/>
+                <Button
+                    android:id="@+id/btn_soju"
+                    android:layout_width="0dp"
+                    android:layout_height="52dp"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    android:minWidth="0dp"
+                    android:text="소주"
+                    android:textSize="13sp" />
 
-            <Button
-                android:id="@+id/btn_drink"
-                android:layout_width="wrap_content"
+                <Button
+                    android:id="@+id/btn_beer"
+                    android:layout_width="0dp"
+                    android:layout_height="52dp"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:minWidth="0dp"
+                    android:text="맥주"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="음료"
-                android:textSize="13sp"/>
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_food"
+                    android:layout_width="0dp"
+                    android:layout_height="52dp"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    android:minWidth="0dp"
+                    android:text="안주"
+                    android:textSize="13sp" />
+
+                <Button
+                    android:id="@+id/btn_drink"
+                    android:layout_width="0dp"
+                    android:layout_height="52dp"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:minWidth="0dp"
+                    android:text="음료"
+                    android:textSize="13sp" />
+            </LinearLayout>
 
         </LinearLayout>
 

@@ -16,5 +16,9 @@ data class Session(
     val storeName: String = "",
     val imageUrl: String = "",
     val totalSojuDrinkCount: Int = 0,
-    val totalBeerDrinkCount: Int = 0
+    val totalBeerDrinkCount: Int = 0,
+    val totalPrice: Int = 0,
+    val totalSojuPrice: Int = 0,
+    val totalBeerPrice: Int = 0,
+    val totalFoodPrice: Int = 0
 )

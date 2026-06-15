@@ -24,20 +24,45 @@ class HistoryHealthViewModel(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
     val currentUserId: String
         get() = FirebaseConfig.auth.currentUser?.uid ?: PENDING_USER_ID
+
+    init {
+        load()
+    }
 
     fun load(userId: String = currentUserId) {
         viewModelScope.launch {
             _isLoading.value = true
-            runCatching {
-                ensureSignedIn()
-                val resolvedUserId = FirebaseConfig.auth.currentUser?.uid ?: userId
-                repository.getMyHistory(resolvedUserId) to repository.getHealthSummary(resolvedUserId)
-            }.onSuccess { (history, health) ->
-                _histories.value = history
-                _healthSummary.value = health
+            ensureSignedIn()
+            val resolvedUserId = FirebaseConfig.auth.currentUser?.uid ?: userId
+
+            val history = runCatching { repository.getMyHistory(resolvedUserId) }
+                .onFailure { e -> 
+                    android.util.Log.e("JANJAN_BUG", "getMyHistory Failed: ${e.message}", e)
+                    _errorMessage.value = "History Error: ${e.message}"
+                }
+                .getOrDefault(emptyList())
+
+            val health = runCatching { repository.getHealthSummary(resolvedUserId) }
+                .onFailure { e -> 
+                    android.util.Log.e("JANJAN_BUG", "getHealthSummary Failed: ${e.message}", e)
+                    if (_errorMessage.value == null) {
+                        _errorMessage.value = "Health Error: ${e.message}"
+                    }
+                }
+                .getOrNull()
+
+            _histories.value = history
+            _healthSummary.value = health
+            
+            if (history.isNotEmpty()) {
+                _errorMessage.value = null
             }
+
             _isLoading.value = false
         }
     }

@@ -10,6 +10,10 @@ import com.gachon.janjan.data.model.Settlement
 import com.gachon.janjan.data.model.SettlementParticipant
 import com.gachon.janjan.data.repository.SettlementRepository
 import com.gachon.janjan.data.repository.StatusRepository
+import com.gachon.janjan.domain.session.repository.FriendRepository
+import com.gachon.janjan.domain.session.model.RankingFriendshipStatus
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -17,6 +21,7 @@ import java.util.Locale
 class StatusViewModel : ViewModel() {
     private val repository = StatusRepository()
     private val settlementRepository = SettlementRepository()
+    private val friendRepository = FriendRepository()
     private var lastSessionState: SessionState? = null
 
     private val _storeInfo = MutableLiveData<String>()
@@ -49,19 +54,24 @@ class StatusViewModel : ViewModel() {
                 if (sessionData != null) {
                     lastSessionState = sessionData
                     calculateAndApply(sessionData, userId)
-                    _activeFriends.value = sessionData.participants
-                        .filter { it.userId != userId }
-                        .sortedByDescending { it.sojuCount + it.beerCount }
-                        .take(4)
-                        .map {
-                            ActiveFriend(
-                                userId = it.userId,
-                                name = it.userName.ifBlank { "참여자" },
-                                storeName = sessionData.storeName,
-                                drinkCount = it.sojuCount + it.beerCount,
-                                isOnline = true
-                            )
-                        }
+                    viewModelScope.launch {
+                        val allParticipantIds = sessionData.participants.map { it.userId }.toSet()
+                        val friendContext = friendRepository.loadFriendContext(userId, allParticipantIds)
+                        
+                        _activeFriends.value = sessionData.participants
+                            .filter { it.userId != userId && friendContext.statuses[it.userId] == RankingFriendshipStatus.FRIEND }
+                            .sortedByDescending { it.sojuCount + it.beerCount }
+                            .take(4)
+                            .map {
+                                ActiveFriend(
+                                    userId = it.userId,
+                                    name = it.userName.ifBlank { "참여자" },
+                                    storeName = sessionData.storeName,
+                                    drinkCount = it.sojuCount + it.beerCount,
+                                    isOnline = true
+                                )
+                            }
+                    }
                 } else {
                     lastSessionState = null
                     _activeFriends.value = emptyList()

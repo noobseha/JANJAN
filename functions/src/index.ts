@@ -14,6 +14,10 @@ const CV_MAX_TRACK_GAP_MS = 1500;
 const CV_NEAR_DISTANCE_RATIO = 0.16;
 const CV_NEAR_DISTANCE_PX = 140;
 const DEFAULT_DRINK_TYPE = "soju";
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const COLLECTION_DRINK_DAILY_STATS = "drinkDailyStats";
+const COLLECTION_DRINK_STORE_DAILY_STATS = "drinkStoreDailyStats";
+const COLLECTION_RANKING_CONTRIBUTIONS = "rankingContributions";
 const YOLO_COLOR_SCREEN_TYPES = new Set([
   "phone_screen",
   "smartphone_screen",
@@ -23,19 +27,23 @@ const YOLO_COLOR_SCREEN_TYPES = new Set([
 ]);
 const YOLO_SOJU_GLASS_TYPES = new Set([
   "soju_glass",
+  "sojuglass",
   "shot_glass",
   "green_soju_glass",
 ]);
 const YOLO_BEER_GLASS_TYPES = new Set([
   "beer_glass",
+  "beerglass",
   "beer_cup",
 ]);
 const YOLO_SOJU_BOTTLE_TYPES = new Set([
+  "soju",
   "soju_bottle",
   "green_soju_bottle",
   "green_bottle",
 ]);
 const YOLO_BEER_BOTTLE_TYPES = new Set([
+  "beer",
   "beer_bottle",
   "brown_beer_bottle",
   "clear_beer_bottle",
@@ -50,6 +58,10 @@ type CvDetection = {
   objectType: string;
   centerX: number;
   centerY: number;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
   confidence: number;
   screenColorHex?: string;
   physicalGlassId?: string;
@@ -109,6 +121,22 @@ export const onCvFrameCreate = functions.firestore
     return null;
   });
 
+export const onSessionClosed = functions.firestore
+  .document("sessions/{sessionId}")
+  .onUpdate(async (change, context) => {
+    const before = change.before.data() as Record<string, unknown>;
+    const after = change.after.data() as Record<string, unknown>;
+    const endedAtMs = toMillis(after.endedAt);
+    const wasAlreadyClosed = before.status === "closed" && toMillis(before.endedAt) != null;
+
+    if (after.status !== "closed" || endedAtMs == null || wasAlreadyClosed) {
+      return null;
+    }
+
+    await aggregateClosedSession(context.params.sessionId, after, endedAtMs);
+    return null;
+  });
+
 function toMillis(value: unknown): number | null {
   if (value == null || typeof value !== "object") {
     return null;
@@ -164,11 +192,132 @@ function numberValue(value: unknown): number | null {
   return value;
 }
 
+function nonNegativeInt(value: unknown): number {
+  const parsed = numberValue(value);
+  if (parsed == null) {
+    return 0;
+  }
+  return Math.max(0, Math.trunc(parsed));
+}
+
+function boundedNumberValue(value: unknown, min: number, max: number): number | null {
+  const parsed = numberValue(value);
+  if (parsed == null) {
+    return null;
+  }
+  return Math.min(max, Math.max(min, parsed));
+}
+
 function sanitizeDocId(value: string): string {
   return value
     .trim()
     .replace(/[^A-Za-z0-9_-]/g, "_")
     .slice(0, 140) || "unknown";
+}
+
+function dateKeyFromKstMillis(millis: number): string {
+  return new Date(millis + KST_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+async function aggregateClosedSession(
+  sessionId: string,
+  sessionData: Record<string, unknown>,
+  endedAtMs: number
+): Promise<void> {
+  const dateKey = dateKeyFromKstMillis(endedAtMs);
+  const storeId = normalizeString(sessionData.storeId) ?? "unknown_store";
+  const storeName = normalizeString(sessionData.storeName) ?? "알 수 없는 가게";
+  const participants = await db.collection(`sessions/${sessionId}/participants`).get();
+
+  for (const participant of participants.docs) {
+    await aggregateParticipantDrinkStats(
+      sessionId,
+      dateKey,
+      storeId,
+      storeName,
+      endedAtMs,
+      participant
+    );
+  }
+}
+
+async function aggregateParticipantDrinkStats(
+  sessionId: string,
+  dateKey: string,
+  storeId: string,
+  storeName: string,
+  endedAtMs: number,
+  participant: admin.firestore.QueryDocumentSnapshot
+): Promise<void> {
+  const participantData = participant.data() as Record<string, unknown>;
+  const userId = normalizeString(participantData.userId) ?? participant.id;
+  const userName = normalizeString(participantData.userName)
+    ?? normalizeString(participantData.nickname)
+    ?? `사용자${userId.slice(-4)}`;
+  const imageUrl = normalizeString(participantData.imageUrl) ?? "";
+  const sojuCount = nonNegativeInt(participantData.sojuDrinkCount);
+  const beerCount = nonNegativeInt(participantData.beerDrinkCount);
+  const totalCount = sojuCount + beerCount;
+
+  if (totalCount <= 0) {
+    return;
+  }
+
+  const contributionId = sanitizeDocId(`${sessionId}_${userId}`);
+  const dailyStatId = sanitizeDocId(`${dateKey}_${userId}`);
+  const storeStatId = sanitizeDocId(`${dateKey}_${storeId}_${userId}`);
+  const contributionRef = db.collection(COLLECTION_RANKING_CONTRIBUTIONS).doc(contributionId);
+  const dailyStatRef = db.collection(COLLECTION_DRINK_DAILY_STATS).doc(dailyStatId);
+  const storeStatRef = db.collection(COLLECTION_DRINK_STORE_DAILY_STATS).doc(storeStatId);
+  const endedAt = admin.firestore.Timestamp.fromMillis(endedAtMs);
+
+  await db.runTransaction(async (transaction: admin.firestore.Transaction) => {
+    const contribution = await transaction.get(contributionRef);
+    if (contribution.exists) {
+      return;
+    }
+
+    const countUpdates = {
+      sojuCount: admin.firestore.FieldValue.increment(sojuCount),
+      beerCount: admin.firestore.FieldValue.increment(beerCount),
+      totalCount: admin.firestore.FieldValue.increment(totalCount),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    transaction.set(dailyStatRef, {
+      dateKey,
+      userId,
+      userName,
+      imageUrl,
+      ...countUpdates,
+    }, { merge: true });
+
+    transaction.set(storeStatRef, {
+      dateKey,
+      storeId,
+      storeName,
+      userId,
+      userName,
+      imageUrl,
+      ...countUpdates,
+    }, { merge: true });
+
+    transaction.set(contributionRef, {
+      sessionId,
+      participantId: participant.id,
+      dateKey,
+      storeId,
+      storeName,
+      userId,
+      userName,
+      imageUrl,
+      sojuCount,
+      beerCount,
+      totalCount,
+      endedAt,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  });
 }
 
 async function handleColorGlassProximity(
@@ -350,14 +499,7 @@ async function incrementDrinkForGlass(
     return;
   }
 
-  const participantId = participants.docs[0].id;
-  const drinkRecordRef = db
-    .collection(`sessions/${sessionId}/drinkRecords`)
-    .doc();
-  const counterRef = db
-    .collection(`sessions/${sessionId}/drinkCounters`)
-    .doc(userId);
-  const drinkCountField = drinkType === "soju" ? "sojuCount" : "beerCount";
+  const participantRef = participants.docs[0].ref;
   const mappingDrinkCountField = drinkType === "soju" ? "sojuDrinkCount" : "beerDrinkCount";
   const zeroOtherMappingCount = drinkType === "soju"
     ? { beerDrinkCount: mappingData.beerDrinkCount ?? 0 }
@@ -371,36 +513,20 @@ async function incrementDrinkForGlass(
       [mappingDrinkCountField]: admin.firestore.FieldValue.increment(1),
       ...zeroOtherMappingCount,
       lastDrinkAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-    transaction.set(counterRef, {
-      userId,
-      participantId,
-      [drinkCountField]: admin.firestore.FieldValue.increment(1),
-      totalCount: admin.firestore.FieldValue.increment(1),
-      lastDrinkType: drinkType,
-      lastGlassId: glassId,
-      lastDetectionEventId: eventId,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
-    transaction.update(participants.docs[0].ref, {
+    });
+    transaction.update(participantRef, {
       [participantDrinkCountField]: admin.firestore.FieldValue.increment(1),
       lastDrinkType: drinkType,
       lastDrinkAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastGlassId: glassId,
+      lastDetectionEventId: eventId,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     transaction.update(db.collection("sessions").doc(sessionId), {
       [sessionDrinkCountField]: admin.firestore.FieldValue.increment(1),
       lastDrinkAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-    transaction.set(drinkRecordRef, {
-      participantId,
-      userId,
-      drinkType,
-      glassId,
-      detectionEventId: eventId,
-      durationMs,
-      sojuCountDelta: drinkType === "soju" ? 1 : 0,
-      beerCountDelta: drinkType === "beer" ? 1 : 0,
-      recordedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
   });
 }
@@ -417,6 +543,16 @@ async function handleCvFrame(
   const frameWidth = numberValue(frameData.frameWidth);
   const frameHeight = numberValue(frameData.frameHeight);
   const detections = parseCvDetections(frameData, cameraId, frameWidth, frameHeight);
+  const colorMappingThresholdMs = boundedNumberValue(
+    frameData.colorMappingThresholdMs,
+    500,
+    10000
+  ) ?? COLOR_GLASS_MAPPING_THRESHOLD_MS;
+  const pourThresholdMs = boundedNumberValue(
+    frameData.pourThresholdMs,
+    500,
+    10000
+  ) ?? CV_POUR_THRESHOLD_MS;
 
   if (detections.length === 0) {
     return;
@@ -450,7 +586,7 @@ async function handleCvFrame(
         pairId,
         "colorGlass",
         capturedAtMs,
-        COLOR_GLASS_MAPPING_THRESHOLD_MS,
+        colorMappingThresholdMs,
         "mappedAt",
         {
           cameraId,
@@ -502,7 +638,7 @@ async function handleCvFrame(
         pairId,
         "pour",
         capturedAtMs,
-        CV_POUR_THRESHOLD_MS,
+        pourThresholdMs,
         "countedAt",
         {
           cameraId,
@@ -572,12 +708,20 @@ function parseCvDetections(
       data.screenColorHex ?? data.colorHex ?? data.assignedColorHex
     ) ?? undefined;
     const glassDrinkType = drinkTypeForGlassObjectType(objectType);
+    const x = numberValue(data.x);
+    const y = numberValue(data.y);
+    const width = numberValue(data.width) ?? numberValue(data.w);
+    const height = numberValue(data.height) ?? numberValue(data.h);
 
     return [{
       trackId,
       objectType,
       centerX: center.x,
       centerY: center.y,
+      x: x ?? undefined,
+      y: y ?? undefined,
+      width: width ?? undefined,
+      height: height ?? undefined,
       confidence: numberValue(data.confidence) ?? 1,
       screenColorHex,
       physicalGlassId: normalizeString(data.physicalGlassId)

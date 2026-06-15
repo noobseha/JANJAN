@@ -21,6 +21,7 @@ import android.transition.Slide
 import android.transition.TransitionManager
 import android.view.Gravity
 import kotlinx.coroutines.launch
+import com.gachon.janjan.MenuCategories
 
 class OrderFragment : Fragment(R.layout.fragment_order) {
     private var _binding: FragmentOrderBinding? = null
@@ -30,7 +31,7 @@ class OrderFragment : Fragment(R.layout.fragment_order) {
     private var activeSessionId: String = ""
 
     // 🔥 1. 현재 선택된 카테고리를 추적하는 변수 (반드시 클래스 바로 아래에 선언!)
-    private var currentSelectedCategory = "all"
+    private var currentSelectedCategory = MenuCategories.ALL
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -95,6 +96,7 @@ class OrderFragment : Fragment(R.layout.fragment_order) {
 
         // 주문하기 버튼 클릭 후 status 화면으로 이동
         binding.btnOrder.setOnClickListener {
+            sessionViewModel.setLastOrderedItems(viewModel.getCartSummaryItems())
             viewModel.submitOrder(
                 userId = sessionViewModel.currentUserId,
                 sessionId = activeSessionId
@@ -109,9 +111,9 @@ class OrderFragment : Fragment(R.layout.fragment_order) {
             TransitionManager.beginDelayedTransition(binding.root as ViewGroup, transition)
 
             // 창을 열거나 닫을 때 무조건 상태를 "전체"로 초기화
-            currentSelectedCategory = "all"
+            currentSelectedCategory = MenuCategories.ALL
             resetCategoryUI()
-            viewModel.filterByCategory("all")
+            viewModel.filterByCategory(MenuCategories.ALL)
 
             if (binding.layoutCategoryFilter.visibility == View.VISIBLE) {
                 binding.layoutCategoryFilter.visibility = View.GONE
@@ -121,9 +123,10 @@ class OrderFragment : Fragment(R.layout.fragment_order) {
         }
 
         // 🔥 카테고리 클릭 리스너 설정 (토글 함수 연결)
-        binding.tvCategoryFood.setOnClickListener { toggleCategory(binding.tvCategoryFood, "food") }
-        binding.tvCategorySoju.setOnClickListener { toggleCategory(binding.tvCategorySoju, "soju") }
-        binding.tvCategoryBeer.setOnClickListener { toggleCategory(binding.tvCategoryBeer, "beer") }
+        binding.tvCategoryFood.setOnClickListener { toggleCategory(binding.tvCategoryFood, MenuCategories.FOOD) }
+        binding.tvCategorySoju.setOnClickListener { toggleCategory(binding.tvCategorySoju, MenuCategories.SOJU) }
+        binding.tvCategoryBeer.setOnClickListener { toggleCategory(binding.tvCategoryBeer, MenuCategories.BEER) }
+        binding.tvCategoryDrink.setOnClickListener { toggleCategory(binding.tvCategoryDrink, MenuCategories.DRINK) }
 
         // 🔥 앱 처음 켰을 때 초기 UI 상태 (모두 회색)
         resetCategoryUI()
@@ -184,9 +187,9 @@ class OrderFragment : Fragment(R.layout.fragment_order) {
     private fun toggleCategory(selectedView: android.widget.TextView, category: String) {
         if (currentSelectedCategory == category) {
             // 이미 켜진 걸 또 누름 -> 필터 해제(전체 메뉴)
-            currentSelectedCategory = "all"
+            currentSelectedCategory = MenuCategories.ALL
             resetCategoryUI()
-            viewModel.filterByCategory("all")
+            viewModel.filterByCategory(MenuCategories.ALL)
         } else {
             // 새로운 걸 누름 -> 필터 적용
             currentSelectedCategory = category
@@ -210,6 +213,7 @@ class OrderFragment : Fragment(R.layout.fragment_order) {
         binding.tvCategoryFood.apply { setBackgroundResource(unselectedBg); setTextColor(unselectedColor) }
         binding.tvCategorySoju.apply { setBackgroundResource(unselectedBg); setTextColor(unselectedColor) }
         binding.tvCategoryBeer.apply { setBackgroundResource(unselectedBg); setTextColor(unselectedColor) }
+        binding.tvCategoryDrink.apply { setBackgroundResource(unselectedBg); setTextColor(unselectedColor) }
     }
 
     override fun onDestroyView() {

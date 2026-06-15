@@ -13,6 +13,7 @@ import java.text.DecimalFormat
 
 class EasyPay(
     private val price: Int,
+    private val storeName: String,
     private val onPaySelected: (String) -> Unit
 ) : DialogFragment() {
 
@@ -37,18 +38,35 @@ class EasyPay(
 
         binding.btnClose.setOnClickListener { dismiss() }
 
-        // 페이 종류 클릭 이벤트 전달 및 창 닫기
         binding.btnTossPay.setOnClickListener {
-            onPaySelected("토스페이")
-            dismiss()
+            try {
+                val uriString = "mocktoss://pay?storeName=${storeName}&amount=${price}"
+                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(uriString))
+                startActivity(intent)
+                dismiss() // 앱이 성공적으로 열리면 팝업만 닫고 대기 (딥링크 복귀 대기)
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(requireContext(), "토스 앱이 설치되어 있지 않습니다.", android.widget.Toast.LENGTH_SHORT).show()
+            }
         }
         binding.btnKakaoPay.setOnClickListener {
-            onPaySelected("카카오페이")
-            dismiss()
+            try {
+                val uriString = "mockkakao://pay?storeName=${storeName}&amount=${price}"
+                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(uriString))
+                startActivity(intent)
+                dismiss() // 앱이 성공적으로 열리면 팝업만 닫고 대기 (딥링크 복귀 대기)
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(requireContext(), "카카오페이 앱이 설치되어 있지 않습니다.", android.widget.Toast.LENGTH_SHORT).show()
+            }
         }
         binding.btnNaverPay.setOnClickListener {
-            onPaySelected("네이버페이")
-            dismiss()
+            try {
+                val uriString = "mocknaver://pay?storeName=${storeName}&amount=${price}"
+                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(uriString))
+                startActivity(intent)
+                dismiss() // 앱이 성공적으로 열리면 팝업만 닫고 대기 (딥링크 복귀 대기)
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(requireContext(), "네이버페이 앱이 설치되어 있지 않습니다.", android.widget.Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

@@ -57,7 +57,17 @@
                 android:id="@+id/btn_soju"
                 android:layout_width="wrap_content"
                 android:layout_height="36dp"
-                android:text="주류"
+                android:text="소주"
+                android:backgroundTint="#E0E0E0"
+                android:textColor="#333333"
+                android:layout_marginEnd="8dp"
+                android:textSize="13sp"/>
+
+            <Button
+                android:id="@+id/btn_beer"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="맥주"
                 android:backgroundTint="#E0E0E0"
                 android:textColor="#333333"
                 android:layout_marginEnd="8dp"

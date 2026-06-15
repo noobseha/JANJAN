@@ -25,7 +25,7 @@ class MenuAdapter(
         holder.binding.apply {
             tvMenuName.text = item.name
             tvMenuPrice.text = "${item.price}원"
-            tvMenuCategory.text = item.category
+            tvMenuCategory.text = MenuCategories.label(item.category)
             tvSoldOut.visibility = if (item.isSoldOut) android.view.View.VISIBLE else android.view.View.GONE
             if (item.imageUrl.isNotEmpty()) {
                 Glide.with(root.context).load(item.imageUrl).into(ivMenuImage)

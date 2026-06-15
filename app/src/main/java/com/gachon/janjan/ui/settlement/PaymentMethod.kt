@@ -14,6 +14,7 @@ import java.text.DecimalFormat
 
 class PaymentMethod(
     private val price: Int,
+    private val storeName: String,
     private val onPaymentSelected: (String) -> Unit
 ) : DialogFragment() {
 
@@ -48,7 +49,7 @@ class PaymentMethod(
             dismiss()
 
             // 2. 곧바로 간편결제 전용 상세 팝업창(EasyPayDialog)을 이어서 띄움
-            val easyPayDialog = EasyPay(price = price) { selectedPay ->
+            val easyPayDialog = EasyPay(price = price, storeName = storeName) { selectedPay ->
                 // 토스, 카카오, 네이버페이 중 하나를 최종 선택했을 때 넘어오는 결과 코드
                 // 이 람다식을 통해 부모 Fragment(SettlementFragment)까지 이벤트를 릴레이 시켜주기 위함
                 onPaymentSelected(selectedPay)
@@ -69,12 +70,7 @@ class PaymentMethod(
         binding.btnDirectPay.setOnClickListener {
             onPaymentSelected("직접 결제")
             dismiss()
-        }
-        binding.btnDirectPay.setOnClickListener {
-            // 1. 현재 결제수단 선택 창은 닫기
-            dismiss()
 
-            // 2. 완벽하게 고정된 이름 규칙에 맞춰 대기 창 띄우기!
             val directPay = DirectPay(price = price)
             directPay.show(parentFragmentManager, "DirectPay")
         }

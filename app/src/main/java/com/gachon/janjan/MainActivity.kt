@@ -1,8 +1,9 @@
 package com.gachon.janjan
 
 import android.os.Bundle
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import com.gachon.janjan.databinding.ActivityMainBinding
 
@@ -11,13 +12,44 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        applyTopSystemBarPadding()
 
         when (intent.getStringExtra(EXTRA_USER_TYPE)) {
             USER_TYPE_BUSINESS -> showBusinessDashboard(savedInstanceState)
             else -> showPersonalApp()
+        }
+        
+        handleDeepLink(intent)
+    }
+
+    private fun applyTopSystemBarPadding() {
+        val fallbackTop = statusBarHeight()
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
+            val topInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            view.setPadding(0, topInset.takeIf { it > 0 } ?: fallbackTop, 0, 0)
+            insets
+        }
+    }
+
+    private fun statusBarHeight(): Int {
+        val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
+        return if (resourceId > 0) resources.getDimensionPixelSize(resourceId) else 0
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleDeepLink(intent)
+    }
+
+    private fun handleDeepLink(intent: android.content.Intent?) {
+        val uri = intent?.data
+        if (uri != null && uri.scheme == "janjan" && uri.host == "payment_complete") {
+            val method = uri.getQueryParameter("method") ?: "unknown"
+            val sessionViewModel = androidx.lifecycle.ViewModelProvider(this)[com.gachon.janjan.domain.session.viewmodel.SessionViewModel::class.java]
+            sessionViewModel.triggerExternalPaymentComplete(method)
         }
     }
 
@@ -33,10 +65,10 @@ class MainActivity : AppCompatActivity() {
         binding.bottomNavigation.visibility = android.view.View.VISIBLE
 
         if (savedInstanceState == null) {
-            loadFragment(StoreProfileFragment())
+            loadFragment(TableFragment())
         }
 
-        binding.bottomNavigation.selectedItemId = R.id.nav_profile
+        binding.bottomNavigation.selectedItemId = R.id.nav_table
         binding.bottomNavigation.setOnItemSelectedListener { item ->
             val fragment: Fragment = when (item.itemId) {
                 R.id.nav_table -> TableFragment()
@@ -62,6 +94,15 @@ class MainActivity : AppCompatActivity() {
             .replace(R.id.fragment_container, NotificationFragment())
             .addToBackStack(null)
             .commit()
+    }
+
+    fun navigateToBusinessProfile() {
+        if (binding.fragmentContainer.visibility != android.view.View.VISIBLE) return
+        if (binding.bottomNavigation.selectedItemId == R.id.nav_profile) {
+            loadFragment(StoreProfileFragment())
+        } else {
+            binding.bottomNavigation.selectedItemId = R.id.nav_profile
+        }
     }
 
     companion object {

@@ -19,7 +19,7 @@ class MenuEditActivity : AppCompatActivity() {
     private val auth = FirebaseAuth.getInstance()
     private val storage = FirebaseStorage.getInstance()
     private var selectedImageUri: Uri? = null
-    private var selectedCategory = "주류"
+    private var selectedCategory = MenuCategories.SOJU
     private var isSoldOut = false
     private var menuId = ""
     private val PICK_IMAGE = 1001
@@ -40,7 +40,7 @@ class MenuEditActivity : AppCompatActivity() {
             Glide.with(this).load(imageUrl).into(binding.ivMenuImage)
         }
 
-        selectCategory(intent.getStringExtra("category") ?: "주류")
+        selectCategory(intent.getStringExtra("category") ?: MenuCategories.SOJU)
 
         binding.btnBack.setOnClickListener { finish() }
 
@@ -50,9 +50,10 @@ class MenuEditActivity : AppCompatActivity() {
             startActivityForResult(intent, PICK_IMAGE)
         }
 
-        binding.btnSoju.setOnClickListener { selectCategory("주류") }
-        binding.btnFood.setOnClickListener { selectCategory("안주") }
-        binding.btnDrink.setOnClickListener { selectCategory("음료") }
+        binding.btnSoju.setOnClickListener { selectCategory(MenuCategories.SOJU) }
+        binding.btnBeer.setOnClickListener { selectCategory(MenuCategories.BEER) }
+        binding.btnFood.setOnClickListener { selectCategory(MenuCategories.FOOD) }
+        binding.btnDrink.setOnClickListener { selectCategory(MenuCategories.DRINK) }
 
         binding.switchSoldOut.setOnCheckedChangeListener { _, checked ->
             isSoldOut = checked
@@ -62,15 +63,17 @@ class MenuEditActivity : AppCompatActivity() {
     }
 
     private fun selectCategory(category: String) {
-        selectedCategory = category
+        selectedCategory = MenuCategories.normalize(category)
         val teal = android.graphics.Color.parseColor("#4DB6AC")
         val gray = android.graphics.Color.parseColor("#E0E0E0")
-        binding.btnSoju.backgroundTintList = android.content.res.ColorStateList.valueOf(if (category == "주류") teal else gray)
-        binding.btnFood.backgroundTintList = android.content.res.ColorStateList.valueOf(if (category == "안주") teal else gray)
-        binding.btnDrink.backgroundTintList = android.content.res.ColorStateList.valueOf(if (category == "음료") teal else gray)
-        binding.btnSoju.setTextColor(if (category == "주류") android.graphics.Color.WHITE else android.graphics.Color.parseColor("#333333"))
-        binding.btnFood.setTextColor(if (category == "안주") android.graphics.Color.WHITE else android.graphics.Color.parseColor("#333333"))
-        binding.btnDrink.setTextColor(if (category == "음료") android.graphics.Color.WHITE else android.graphics.Color.parseColor("#333333"))
+        binding.btnSoju.backgroundTintList = android.content.res.ColorStateList.valueOf(if (selectedCategory == MenuCategories.SOJU) teal else gray)
+        binding.btnBeer.backgroundTintList = android.content.res.ColorStateList.valueOf(if (selectedCategory == MenuCategories.BEER) teal else gray)
+        binding.btnFood.backgroundTintList = android.content.res.ColorStateList.valueOf(if (selectedCategory == MenuCategories.FOOD) teal else gray)
+        binding.btnDrink.backgroundTintList = android.content.res.ColorStateList.valueOf(if (selectedCategory == MenuCategories.DRINK) teal else gray)
+        binding.btnSoju.setTextColor(if (selectedCategory == MenuCategories.SOJU) android.graphics.Color.WHITE else android.graphics.Color.parseColor("#333333"))
+        binding.btnBeer.setTextColor(if (selectedCategory == MenuCategories.BEER) android.graphics.Color.WHITE else android.graphics.Color.parseColor("#333333"))
+        binding.btnFood.setTextColor(if (selectedCategory == MenuCategories.FOOD) android.graphics.Color.WHITE else android.graphics.Color.parseColor("#333333"))
+        binding.btnDrink.setTextColor(if (selectedCategory == MenuCategories.DRINK) android.graphics.Color.WHITE else android.graphics.Color.parseColor("#333333"))
     }
 
     private fun editMenu() {
@@ -84,6 +87,7 @@ class MenuEditActivity : AppCompatActivity() {
         val price = priceStr.toInt()
 
         val updates = hashMapOf<String, Any>(
+            "storeId" to uid,
             "name" to name,
             "price" to price,
             "category" to selectedCategory,

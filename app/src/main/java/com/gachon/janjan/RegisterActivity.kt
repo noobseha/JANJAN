@@ -89,12 +89,11 @@ class RegisterActivity : AppCompatActivity() {
             val password = binding.etPassword.text.toString()
             val passwordConfirm = binding.etPasswordConfirm.text.toString()
             val nickname = binding.etNickname.text.toString()
-            val name = binding.etName.text.toString()
             val birthdate = binding.etBirthdate.text.toString()
             val phone = binding.etPhone.text.toString()
             userAddressDetail = binding.etAddressDetail.text.toString()
 
-            if (email.isEmpty() || password.isEmpty() || name.isEmpty() || nickname.isEmpty()) {
+            if (email.isEmpty() || password.isEmpty() || nickname.isEmpty()) {
                 Toast.makeText(this, "모든 항목을 입력해주세요", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
@@ -109,25 +108,36 @@ class RegisterActivity : AppCompatActivity() {
                     val uid = result.user?.uid ?: return@addOnSuccessListener
 
                     val user = hashMapOf(
-                        "login_id" to email,
-                        "name" to name,
+                        "uid" to uid,
+                        "role" to "personal",
+                        "email" to email,
+                        "loginId" to email,
                         "nickname" to nickname,
                         "phone" to phone,
                         "birthdate" to birthdate,
                         "address" to userAddress,
-                        "address_detail" to userAddressDetail,
-                        "is_active" to true,
-                        "created_at" to com.google.firebase.Timestamp.now(),
-                        "updated_at" to com.google.firebase.Timestamp.now()
+                        "addressDetail" to userAddressDetail,
+                        "isActive" to true,
+                        "createdAt" to com.google.firebase.Timestamp.now(),
+                        "updatedAt" to com.google.firebase.Timestamp.now()
                     )
 
                     Firebase.firestore.collection("users").document(uid).set(user)
                         .addOnSuccessListener {
+                            Firebase.auth.signOut()
                             Toast.makeText(this, "회원가입 성공!", Toast.LENGTH_SHORT).show()
                             val intent = Intent(this, LoginActivity::class.java)
                             intent.putExtra("userType", "personal")
                             startActivity(intent)
                             finish()
+                        }
+                        .addOnFailureListener { e ->
+                            result.user?.delete()
+                            Toast.makeText(
+                                this,
+                                "회원 정보 저장 실패: ${e.message}. 다시 가입해주세요.",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                 }
                 .addOnFailureListener {

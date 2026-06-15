@@ -5,6 +5,7 @@ data class SettlementParticipant(
     val userName: String = "",
     val myTotal: Long = 0,
     val paidStatus: Boolean = false,
+    val pendingApproval: Boolean = false,
     val beerCupCount: Int = 0,
     val sojuCupCount: Int = 0
 )

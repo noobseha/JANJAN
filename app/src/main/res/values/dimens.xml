@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="screen_horizontal_padding">24dp</dimen>
+    <dimen name="screen_vertical_padding">24dp</dimen>
+    <dimen name="form_max_width">420dp</dimen>
+    <dimen name="form_field_height">56dp</dimen>
+    <dimen name="dialog_outer_margin">20dp</dimen>
+    <dimen name="dialog_inner_padding">22dp</dimen>
+    <dimen name="dialog_option_height">96dp</dimen>
+</resources>

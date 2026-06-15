@@ -16,5 +16,7 @@ data class SettlementParticipant(
     val mytotal: Int = 0,            // 이 사람이 개별적으로 내야 할 금액 (계산된 결과값)
     val beerCupCount: Int = 0,       // 맥주잔 수
     val sojuCupCount: Int = 0,       // 소주잔 수
-    val paidStatus: Boolean = false  // 송금 완료 여부 (기본값 false)
+    val paidStatus: Boolean = false, // 송금 완료 여부 (기본값 false)
+    val pendingApproval: Boolean = false,
+    val paymentMethod: String = ""
 )

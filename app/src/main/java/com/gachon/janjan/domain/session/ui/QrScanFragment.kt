@@ -26,13 +26,16 @@ class QrScanFragment : Fragment() {
                 sessionViewModel = sessionViewModel,
                 onBack = { findNavController().popBackStack() },
                 onInvite = { findNavController().navigate(R.id.inviteCodeFragment) },
-                onOrderReady = { sessionId ->
-                    findNavController().navigate(
-                        R.id.orderFragment,
-                        Bundle().apply { putString("sessionId", sessionId) }
-                    )
-                }
+                onSessionJoined = { returnToSessionHome() }
             )
+        }
+    }
+
+    private fun returnToSessionHome() {
+        val navController = findNavController()
+        val returnedHome = navController.popBackStack(R.id.sessionHomeFragment, false)
+        if (!returnedHome) {
+            navController.navigate(R.id.sessionHomeFragment)
         }
     }
 }

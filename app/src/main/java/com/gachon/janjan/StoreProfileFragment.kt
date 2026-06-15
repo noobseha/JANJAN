@@ -4,16 +4,24 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
+import com.gachon.janjan.data.repository.AccountDeletionRepository
 import com.gachon.janjan.databinding.FragmentStoreProfileBinding
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class StoreProfileFragment : Fragment() {
 
@@ -22,7 +30,9 @@ class StoreProfileFragment : Fragment() {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
     private val storage = FirebaseStorage.getInstance()
+    private val accountDeletionRepository = AccountDeletionRepository()
     private var selectedImageUri: Uri? = null
+    private var isWithdrawing = false
     private val PICK_IMAGE = 1001
 
     override fun onCreateView(
@@ -49,10 +59,79 @@ class StoreProfileFragment : Fragment() {
 
         binding.btnLogout.setOnClickListener {
             auth.signOut()
-            val intent = Intent(requireContext(), LandingActivity::class.java)
-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            startActivity(intent)
+            navigateToLanding()
         }
+
+        binding.btnWithdraw.setOnClickListener {
+            showWithdrawDialog()
+        }
+    }
+
+    private fun showWithdrawDialog() {
+        if (isWithdrawing) return
+
+        val passwordInput = EditText(requireContext()).apply {
+            hint = "현재 비밀번호"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+        AlertDialog.Builder(requireContext())
+            .setTitle("회원탈퇴")
+            .setMessage("탈퇴하면 계정과 매장 데이터가 삭제됩니다. 확인을 위해 현재 비밀번호를 입력해 주세요.")
+            .setView(passwordInput)
+            .setPositiveButton("탈퇴") { _, _ ->
+                val password = passwordInput.text.toString()
+                if (password.isBlank()) {
+                    Toast.makeText(requireContext(), "현재 비밀번호를 입력해 주세요.", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                withdraw(password)
+            }
+            .setNegativeButton("취소", null)
+            .show()
+    }
+
+    private fun withdraw(password: String) {
+        val user = auth.currentUser ?: return
+        val email = user.email
+        if (email.isNullOrBlank()) {
+            Toast.makeText(requireContext(), "이메일 정보를 확인하지 못했습니다.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        isWithdrawing = true
+        _binding?.btnWithdraw?.isEnabled = false
+        user.reauthenticate(EmailAuthProvider.getCredential(email, password))
+            .addOnSuccessListener {
+                viewLifecycleOwner.lifecycleScope.launch {
+                    runCatching {
+                        accountDeletionRepository.deleteBusinessData(user.uid)
+                        user.delete().await()
+                    }.onSuccess {
+                        auth.signOut()
+                        Toast.makeText(requireContext(), "탈퇴되었습니다.", Toast.LENGTH_SHORT).show()
+                        navigateToLanding()
+                    }.onFailure { error ->
+                        isWithdrawing = false
+                        _binding?.btnWithdraw?.isEnabled = true
+                        Toast.makeText(
+                            requireContext(),
+                            "회원탈퇴 실패: ${error.localizedMessage ?: "알 수 없는 오류"}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+            .addOnFailureListener {
+                isWithdrawing = false
+                _binding?.btnWithdraw?.isEnabled = true
+                Toast.makeText(requireContext(), "현재 비밀번호가 올바르지 않습니다.", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun navigateToLanding() {
+        val intent = Intent(requireContext(), LandingActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
     }
 
     private fun loadStoreProfile() {

@@ -15,10 +15,12 @@ enum class RankingDrinkFilter(val label: String) {
 data class RankingUserStat(
     val userId: String,
     val userName: String,
+    val imageUrl: String = "",
     val sojuCount: Int,
     val beerCount: Int,
     val rank: Int = 0,
-    val isMe: Boolean = false
+    val isMe: Boolean = false,
+    val friendshipStatus: RankingFriendshipStatus = RankingFriendshipStatus.CAN_REQUEST
 ) {
     val totalCount: Int get() = sojuCount + beerCount
 
@@ -44,20 +46,39 @@ data class RankingStoreStat(
             RankingDrinkFilter.SOJU -> sojuCount
             RankingDrinkFilter.BEER -> beerCount
             RankingDrinkFilter.TOTAL -> totalCount
-        }
+    }
 }
+
+data class RankingStoreOption(
+    val id: String,
+    val rankingStoreId: String = id,
+    val externalId: String = "",
+    val name: String,
+    val address: String = "",
+    val roadAddress: String = "",
+    val jibunAddress: String = "",
+    val category: String = "",
+    val phone: String = "",
+    val placeUrl: String = ""
+)
 
 data class RankingPeriodData(
     val users: List<RankingUserStat> = emptyList(),
-    val stores: List<RankingStoreStat> = emptyList()
+    val stores: List<RankingStoreStat> = emptyList(),
+    val storeUsersByStoreId: Map<String, List<RankingUserStat>> = emptyMap()
 )
 
 data class RankingUiState(
     val isLoading: Boolean = false,
     val selectedPeriod: RankingPeriod = RankingPeriod.WEEKLY,
     val selectedFilter: RankingDrinkFilter = RankingDrinkFilter.TOTAL,
+    val selectedStoreId: String? = null,
     val users: List<RankingUserStat> = emptyList(),
     val stores: List<RankingStoreStat> = emptyList(),
+    val storeOptions: List<RankingStoreOption> = emptyList(),
+    val storeUsers: List<RankingUserStat> = emptyList(),
     val myRank: RankingUserStat? = null,
-    val message: String? = null
+    val message: String? = null,
+    val incomingFriendRequests: List<FriendRequest> = emptyList(),
+    val outgoingFriendRequests: List<SentFriendRequest> = emptyList()
 )
