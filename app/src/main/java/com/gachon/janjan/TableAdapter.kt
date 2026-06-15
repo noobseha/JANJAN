@@ -1,10 +1,13 @@
 package com.gachon.janjan
 
+import android.graphics.Color
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.gachon.janjan.databinding.ItemTableNormalBinding
 import com.gachon.janjan.databinding.ItemTableSettingBinding
+import java.util.Locale
 
 class TableAdapter(
     private val items: MutableList<StoreTable?>,
@@ -35,8 +38,8 @@ class TableAdapter(
         return if (items[position] == null) typeAdd else typeSetting
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-        return when (viewType) {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder =
+        when (viewType) {
             typeSetting -> {
                 val binding = ItemTableSettingBinding.inflate(LayoutInflater.from(parent.context), parent, false)
                 SettingViewHolder(binding)
@@ -50,7 +53,6 @@ class TableAdapter(
                 NormalViewHolder(binding)
             }
         }
-    }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (holder) {
@@ -58,14 +60,28 @@ class TableAdapter(
                 val table = items[position] ?: return
                 holder.binding.apply {
                     tvTableNumber.text = "${table.tableNumber}"
-                    tvTableAmount.text = "0원"
-                    tvTablePeople.text = ""
                     val tableInUse = table.activeSessionId.isNotBlank()
-                    tvTableState.text = if (tableInUse) "사용중" else "비어있음"
+                    tvTableAmount.text = "${String.format(Locale.KOREA, "%,d", table.currentAmount)}원"
+                    tvTablePeople.text = if (tableInUse) {
+                        "소주 ${table.sojuDrinkCount}잔 · 맥주 ${table.beerDrinkCount}잔"
+                    } else {
+                        table.inviteCode
+                            .takeIf { it.isNotBlank() }
+                            ?.let { "초대코드 $it" }
+                            .orEmpty()
+                    }
+                    tvTableState.text = if (tableInUse) {
+                        table.inviteCode
+                            .takeIf { it.isNotBlank() }
+                            ?.let { "사용중 · $it" }
+                            ?: "사용중"
+                    } else {
+                        "비어있음"
+                    }
                     tvTableState.setTextColor(
-                        android.graphics.Color.parseColor(if (tableInUse) "#4DB6AC" else "#999999")
+                        Color.parseColor(if (tableInUse) "#4DB6AC" else "#999999")
                     )
-                    root.setBackgroundColor(android.graphics.Color.WHITE)
+                    root.setBackgroundColor(Color.WHITE)
                     root.setOnClickListener { onTableClick(table) }
                 }
             }
@@ -73,8 +89,8 @@ class TableAdapter(
                 val table = items[position] ?: return
                 holder.binding.apply {
                     tvTableNumber.text = "${table.tableNumber}"
-                    btnIp.visibility = android.view.View.VISIBLE
-                    btnDelete.visibility = android.view.View.VISIBLE
+                    btnIp.visibility = View.VISIBLE
+                    btnDelete.visibility = View.VISIBLE
                     btnIp.setOnClickListener { onIpClick(table) }
                     btnDelete.setOnClickListener { onDeleteClick(table) }
                 }
@@ -83,10 +99,10 @@ class TableAdapter(
                 holder.binding.apply {
                     tvTableNumber.text = "+"
                     tvTableNumber.textSize = 24f
-                    tvTableNumber.setTextColor(android.graphics.Color.parseColor("#4DB6AC"))
-                    btnIp.visibility = android.view.View.GONE
-                    btnDelete.visibility = android.view.View.GONE
-                    root.setBackgroundColor(android.graphics.Color.WHITE)
+                    tvTableNumber.setTextColor(Color.parseColor("#4DB6AC"))
+                    btnIp.visibility = View.GONE
+                    btnDelete.visibility = View.GONE
+                    root.setBackgroundColor(Color.WHITE)
                     root.setOnClickListener { onAddClick() }
                 }
             }

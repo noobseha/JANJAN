@@ -7,6 +7,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.gachon.janjan.databinding.ActivityBusinessLoginBinding
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
+import com.google.firebase.firestore.firestore
 
 class BusinessLoginActivity : AppCompatActivity() {
 
@@ -29,13 +30,33 @@ class BusinessLoginActivity : AppCompatActivity() {
 
             Firebase.auth.signInWithEmailAndPassword(email, password)
                 .addOnSuccessListener {
-                    Toast.makeText(this, "로그인 성공!", Toast.LENGTH_SHORT).show()
-                    val intent = Intent(this, MainActivity::class.java).apply {
-                        putExtra("userType", "business")
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    val uid = Firebase.auth.currentUser?.uid
+                    if (uid.isNullOrBlank()) {
+                        Firebase.auth.signOut()
+                        Toast.makeText(this, "로그인 정보를 확인하지 못했습니다.", Toast.LENGTH_SHORT).show()
+                        return@addOnSuccessListener
                     }
-                    startActivity(intent)
-                    finish()
+
+                    Firebase.firestore.collection("stores").document(uid).get()
+                        .addOnSuccessListener { doc ->
+                            if (!doc.exists()) {
+                                Firebase.auth.signOut()
+                                Toast.makeText(this, "사업자 회원 정보가 없습니다.", Toast.LENGTH_SHORT).show()
+                                return@addOnSuccessListener
+                            }
+
+                            Toast.makeText(this, "로그인 성공!", Toast.LENGTH_SHORT).show()
+                            val intent = Intent(this, MainActivity::class.java).apply {
+                                putExtra("userType", "business")
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                            }
+                            startActivity(intent)
+                            finish()
+                        }
+                        .addOnFailureListener { e ->
+                            Firebase.auth.signOut()
+                            Toast.makeText(this, "사업자 정보 확인 실패: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
                 }
                 .addOnFailureListener {
                     Toast.makeText(this, "로그인 실패: ${it.message}", Toast.LENGTH_SHORT).show()

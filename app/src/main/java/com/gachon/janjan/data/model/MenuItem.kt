@@ -7,7 +7,8 @@ import com.google.firebase.firestore.PropertyName
 data class MenuItem(
     @DocumentId
     val id: String = "",
-    val storeId: Long = 0,
+    val menuId: String = "",
+    val storeId: String = "",
     val name: String = "",
     val price: Int = 0,
     val category: String = "",

@@ -2,23 +2,58 @@ package com.gachon.janjan.data.repository
 
 import android.util.Log
 import com.gachon.janjan.data.model.Settlement
+import com.gachon.janjan.data.model.SettlementParticipant
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.SetOptions
 
 class SettlementRepository {
     private val db = FirebaseFirestore.getInstance()
 
-    // 1. 새로운 정산 문서를 생성하고 Firebase에 저장
+    // 1. 같은 sessionId의 정산 문서는 재사용하고, 금액은 최신 주문 기준으로 갱신
     fun createSettlement(settlement: Settlement, onComplete: (String?) -> Unit) {
-        val ref = db.collection("settlements").document()
-        val finalizedSettlement = settlement.copy(settlementId = ref.id)
+        if (settlement.sessionId.isBlank()) {
+            onComplete(null)
+            return
+        }
 
-        ref.set(finalizedSettlement)
-            .addOnSuccessListener {
-                onComplete(ref.id)
+        val settlementsRef = db.collection("settlements")
+        settlementsRef
+            .whereEqualTo("sessionId", settlement.sessionId)
+            .limit(1)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                val existingDoc = snapshot.documents.firstOrNull()
+                if (existingDoc == null) {
+                    val ref = settlementsRef.document()
+                    val finalizedSettlement = settlement.copy(settlementId = ref.id)
+                    ref.set(finalizedSettlement)
+                        .addOnSuccessListener { onComplete(ref.id) }
+                        .addOnFailureListener { e ->
+                            Log.e("JANJAN_BUG", "정산 문서 생성 실패: ${e.message}")
+                            onComplete(null)
+                        }
+                    return@addOnSuccessListener
+                }
+
+                val existingSettlement = existingDoc.toObject(Settlement::class.java)
+                val mergedSettlement = settlement.copy(
+                    settlementId = existingDoc.id,
+                    participants = mergeParticipants(
+                        incoming = settlement.participants,
+                        existing = existingSettlement?.participants.orEmpty()
+                    )
+                )
+                existingDoc.reference
+                    .set(mergedSettlement, SetOptions.merge())
+                    .addOnSuccessListener { onComplete(existingDoc.id) }
+                    .addOnFailureListener { e ->
+                        Log.e("JANJAN_BUG", "정산 문서 갱신 실패: ${e.message}")
+                        onComplete(null)
+                    }
             }
             .addOnFailureListener { e ->
-                Log.e("JANJAN_BUG", "정산 문서 생성 실패: ${e.message}")
+                Log.e("JANJAN_BUG", "기존 정산 문서 조회 실패: ${e.message}")
                 onComplete(null)
             }
     }
@@ -53,7 +88,10 @@ class SettlementRepository {
                     // 참가자 목록 중 특정 유저의 paidStatus 수정
                     val updatedParticipants = settlement.participants.map {
                         if (it.userId == userId) {
-                            it.copy(paidStatus = paidStatus)
+                            it.copy(
+                                paidStatus = paidStatus,
+                                pendingApproval = false
+                            )
                         } else {
                             it
                         }
@@ -69,6 +107,25 @@ class SettlementRepository {
             }
         }.addOnFailureListener {
             onComplete(false)
+        }
+    }
+
+    private fun mergeParticipants(
+        incoming: List<SettlementParticipant>,
+        existing: List<SettlementParticipant>
+    ): List<SettlementParticipant> {
+        val existingByUserId = existing.associateBy { it.userId }
+        return incoming.map { participant ->
+            val previous = existingByUserId[participant.userId]
+            if (previous == null) {
+                participant
+            } else {
+                participant.copy(
+                    paidStatus = previous.paidStatus,
+                    pendingApproval = previous.pendingApproval,
+                    paymentMethod = previous.paymentMethod
+                )
+            }
         }
     }
 }

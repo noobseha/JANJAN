@@ -50,6 +50,8 @@
 <div id="results"><div id="empty">가게 이름을 검색해주세요</div></div>
 
 <script>
+    window.__places = [];
+
     document.getElementById('search-input').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') search();
     });
@@ -58,35 +60,55 @@
         var query = document.getElementById('search-input').value.trim();
         if (!query) return;
 
-        fetch('https://dapi.kakao.com/v2/local/search/keyword.json?query=' + encodeURIComponent(query) + '&size=10', {
-            headers: { 'Authorization': 'KakaoAK c7cd3eb704854a2b1f19fff6c43fc2e4' }
-        })
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-            Android.log('응답: ' + JSON.stringify(data));
-            var results = document.getElementById('results');
-            if (!data.documents || data.documents.length === 0) {
-                results.innerHTML = '<div id="empty">검색 결과가 없습니다</div>';
-                return;
-            }
-            results.innerHTML = data.documents.map(function(place) {
-                return '<div class="result-item" onclick="selectPlace(\'' +
-                    escape(place.place_name) + '\',\'' +
-                    escape(place.phone) + '\',\'' +
-                    escape(place.road_address_name || place.address_name) + '\')">' +
-                    '<div class="place-name">' + place.place_name + '</div>' +
-                    '<div class="place-address">' + (place.road_address_name || place.address_name) + '</div>' +
-                    '<div class="place-phone">' + (place.phone || '전화번호 없음') + '</div>' +
-                    '</div>';
-            }).join('');
-        })
-        .catch(function(e) {
-            Android.log('오류: ' + e.message);
-        });
+        document.getElementById('results').innerHTML = '<div id="empty">검색 중입니다</div>';
+        Android.searchStores(query);
     }
 
-    function selectPlace(name, phone, address) {
-        Android.onStoreSelected(unescape(name), unescape(phone), unescape(address));
+    function renderResults(places) {
+        var results = document.getElementById('results');
+        if (!places || places.length === 0) {
+            window.__places = [];
+            results.innerHTML = '<div id="empty">검색 결과가 없습니다</div>';
+            return;
+        }
+        window.__places = places;
+        results.innerHTML = places.map(function(place, index) {
+            return '<div class="result-item" onclick="selectPlace(' + index + ')">' +
+                '<div class="place-name">' + escapeHtml(place.name || '') + '</div>' +
+                '<div class="place-address">' + escapeHtml(place.address || '') + '</div>' +
+                '<div class="place-phone">' + escapeHtml(place.phone || '전화번호 없음') + '</div>' +
+                '</div>';
+        }).join('');
+    }
+
+    function renderError(message) {
+        window.__places = [];
+        document.getElementById('results').innerHTML =
+            '<div id="empty">' + escapeHtml(message || '검색 중 오류가 발생했습니다') + '</div>';
+    }
+
+    function escapeHtml(value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function selectPlace(index) {
+        var place = window.__places[index];
+        if (!place) return;
+        Android.onStoreSelected(
+            place.name || '',
+            place.phone || '',
+            place.address || '',
+            place.id || '',
+            place.category || '',
+            place.placeUrl || '',
+            place.roadAddress || '',
+            place.jibunAddress || ''
+        );
     }
 </script>
 </body>

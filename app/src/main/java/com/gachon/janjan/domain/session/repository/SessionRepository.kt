@@ -1,5 +1,7 @@
 package com.gachon.janjan.domain.session.repository
 
+import com.gachon.janjan.TableInviteCodes
+import com.gachon.janjan.MenuCategories
 import com.gachon.janjan.domain.session.FirebaseConfig
 import com.gachon.janjan.data.model.Session
 import com.gachon.janjan.domain.session.model.OrderSummaryItem
@@ -27,18 +29,13 @@ class SessionRepository(
         val docRef = sessionsRef.document()
         val normalizedInviteCode = inviteCode?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
         docRef.set(
-            hashMapOf(
-                "sessionId" to docRef.id,
-                "storeId" to storeId,
-                "storeName" to storeName,
-                "tableId" to tableId,
-                "tableNumber" to tableNumber,
-                "inviteCode" to normalizedInviteCode,
-                "status" to "active",
-                "startedAt" to FieldValue.serverTimestamp(),
-                "endedAt" to null,
-                "totalSojuDrinkCount" to 0,
-                "totalBeerDrinkCount" to 0
+            newSessionPayload(
+                sessionId = docRef.id,
+                storeId = storeId,
+                storeName = storeName,
+                tableId = tableId,
+                tableNumber = tableNumber,
+                inviteCode = normalizedInviteCode.orEmpty()
             )
         ).await()
         return docRef.id
@@ -215,71 +212,79 @@ class SessionRepository(
         normalized: String
     ): Session? {
         val inviteCode = doc.normalizedInviteCode().ifBlank { normalized }
-        val sessionId = doc.stringValue("sessionId")
-            ?: doc.stringValue("assignedSessionId")
-            ?: doc.stringValue("activeSessionId")
-            ?: "session_${inviteCode.lowercase(Locale.US)}"
-        val sessionRef = sessionsRef.document(sessionId)
-        val existingSession = sessionRef.get().await().toSessionModel()
-        if (existingSession?.status == "closed") return null
-
         val rawTableId = doc.stringValue("tableId")
             ?: doc.stringValue("assignedTableId")
-            ?: existingSession?.tableId
             ?: ""
         val tableNumber = doc.intValue("tableNumber").takeIf { it > 0 }
-            ?: existingSession?.tableNumber?.takeIf { it > 0 }
             ?: rawTableId.filter { it.isDigit() }.toIntOrNull()
             ?: 0
         val tableId = rawTableId.ifBlank {
             tableNumber.takeIf { it > 0 }?.let { "table_$it" }.orEmpty()
         }
         val storeId = doc.stringValue("storeId")
-            ?: existingSession?.storeId
             ?: doc.reference.parent.parent?.id
             ?: doc.stringValue("ownerUserId")
             ?: ""
         val storeName = doc.stringValue("storeName")
-            ?: existingSession?.storeName
             ?: doc.stringValue("name")
             ?: ""
 
-        val sessionPayload = mutableMapOf<String, Any?>(
-            "sessionId" to sessionId,
-            "inviteCode" to inviteCode,
-            "status" to (existingSession?.status?.takeIf { it.isNotBlank() } ?: "active"),
-            "updatedAt" to FieldValue.serverTimestamp()
+        val candidateSessionIds = listOfNotNull(
+            doc.stringValue("activeSessionId"),
+            doc.stringValue("sessionId"),
+            doc.stringValue("assignedSessionId")
+        ).filter { it.isNotBlank() }.distinct()
+
+        candidateSessionIds.firstNotNullOfOrNull { candidateId ->
+            getSession(candidateId)?.takeIf { it.isJoinable() }
+        }?.let { activeSession ->
+            val sessionRef = sessionsRef.document(activeSession.sessionId)
+            sessionRef.set(
+                mapOf(
+                    "sessionId" to activeSession.sessionId,
+                    "storeId" to activeSession.storeId.ifBlank { storeId },
+                    "storeName" to activeSession.storeName.ifBlank { storeName },
+                    "tableId" to activeSession.tableId.ifBlank { tableId },
+                    "tableNumber" to (activeSession.tableNumber.takeIf { it > 0 } ?: tableNumber),
+                    "inviteCode" to activeSession.inviteCode.ifBlank { inviteCode },
+                    "updatedAt" to FieldValue.serverTimestamp()
+                ),
+                SetOptions.merge()
+            ).await()
+
+            val refreshed = sessionRef.get().await().toSessionModel() ?: activeSession
+            writeTableActiveSession(
+                storeId = refreshed.storeId.ifBlank { storeId },
+                storeName = refreshed.storeName.ifBlank { storeName },
+                tableId = refreshed.tableId.ifBlank { tableId },
+                tableNumber = refreshed.tableNumber.takeIf { it > 0 } ?: tableNumber,
+                sessionId = refreshed.sessionId,
+                inviteCode = refreshed.inviteCode.ifBlank { inviteCode }
+            )
+            return refreshed
+        }
+
+        val sessionRef = sessionsRef.document()
+        val sessionId = sessionRef.id
+        sessionRef.set(
+            newSessionPayload(
+                sessionId = sessionId,
+                storeId = storeId,
+                storeName = storeName,
+                tableId = tableId,
+                tableNumber = tableNumber,
+                inviteCode = inviteCode
+            )
+        ).await()
+
+        writeTableActiveSession(
+            storeId = storeId,
+            storeName = storeName,
+            tableId = tableId,
+            tableNumber = tableNumber,
+            sessionId = sessionId,
+            inviteCode = inviteCode
         )
-        if (storeId.isNotBlank()) sessionPayload["storeId"] = storeId
-        if (storeName.isNotBlank()) sessionPayload["storeName"] = storeName
-        if (tableId.isNotBlank()) sessionPayload["tableId"] = tableId
-        if (tableNumber > 0) sessionPayload["tableNumber"] = tableNumber
-        if (existingSession == null) {
-            sessionPayload["startedAt"] = FieldValue.serverTimestamp()
-            sessionPayload["endedAt"] = null
-            sessionPayload["totalSojuDrinkCount"] = 0
-            sessionPayload["totalBeerDrinkCount"] = 0
-        }
-
-        sessionRef.set(sessionPayload, SetOptions.merge()).await()
-
-        if (storeId.isNotBlank() && tableId.isNotBlank()) {
-            db.collection(FirestorePaths.STORES).document(storeId)
-                .collection(FirestorePaths.TABLES).document(tableId)
-                .set(
-                    mapOf(
-                        "storeId" to storeId,
-                        "storeName" to storeName,
-                        "tableId" to tableId,
-                        "tableNumber" to tableNumber,
-                        "activeSessionId" to sessionId,
-                        "inviteCode" to inviteCode,
-                        "updatedAt" to FieldValue.serverTimestamp()
-                    ),
-                    SetOptions.merge()
-                )
-                .await()
-        }
 
         return sessionRef.get().await().toSessionModel()
     }
@@ -306,22 +311,70 @@ class SessionRepository(
         val tableId = session.tableId.ifBlank {
             session.tableNumber.takeIf { it > 0 }?.let { "table_$it" } ?: return
         }
-        db.collection("stores").document(storeId)
-            .collection("tables").document(tableId)
+        writeTableActiveSession(
+            storeId = storeId,
+            storeName = session.storeName,
+            tableId = tableId,
+            tableNumber = session.tableNumber,
+            sessionId = session.sessionId,
+            inviteCode = session.inviteCode
+        )
+    }
+
+    private suspend fun writeTableActiveSession(
+        storeId: String,
+        storeName: String,
+        tableId: String,
+        tableNumber: Int,
+        sessionId: String,
+        inviteCode: String
+    ) {
+        if (storeId.isBlank() || tableId.isBlank()) return
+        db.collection(FirestorePaths.STORES).document(storeId)
+            .collection(FirestorePaths.TABLES).document(tableId)
             .set(
                 mapOf(
                     "storeId" to storeId,
-                    "storeName" to session.storeName,
+                    "storeName" to storeName,
                     "tableId" to tableId,
-                    "tableNumber" to session.tableNumber,
-                    "activeSessionId" to session.sessionId,
-                    "inviteCode" to session.inviteCode,
+                    "tableNumber" to tableNumber,
+                    "activeSessionId" to sessionId,
+                    "inviteCode" to inviteCode,
                     "updatedAt" to FieldValue.serverTimestamp()
                 ),
                 SetOptions.merge()
             )
             .await()
     }
+
+    private fun newSessionPayload(
+        sessionId: String,
+        storeId: String,
+        storeName: String,
+        tableId: String,
+        tableNumber: Int,
+        inviteCode: String
+    ): Map<String, Any?> = mapOf(
+        "sessionId" to sessionId,
+        "storeId" to storeId,
+        "storeName" to storeName,
+        "tableId" to tableId,
+        "tableNumber" to tableNumber,
+        "inviteCode" to TableInviteCodes.normalize(inviteCode),
+        "status" to "active",
+        "startedAt" to FieldValue.serverTimestamp(),
+        "endedAt" to null,
+        "participantCount" to 0,
+        "totalPrice" to 0,
+        "totalSojuPrice" to 0,
+        "totalBeerPrice" to 0,
+        "totalFoodPrice" to 0,
+        "totalSojuDrinkCount" to 0,
+        "totalBeerDrinkCount" to 0,
+        "orderCount" to 0,
+        "lastOrderAt" to null,
+        "updatedAt" to FieldValue.serverTimestamp()
+    )
 
     suspend fun findLatestActiveSessionForUser(userId: String): Session? {
         val participations = db.collectionGroup(FirestorePaths.PARTICIPANTS)
@@ -339,14 +392,47 @@ class SessionRepository(
             .maxByOrNull { it.startedAt }
     }
 
-    suspend fun loadOrderSummaries(sessionId: String): List<OrderSummaryItem> {
+    suspend fun loadOrderSummaries(sessionId: String, storeId: String? = null): List<OrderSummaryItem> {
         val orderDocs = db.collection(FirestorePaths.ORDERS)
             .whereEqualTo("sessionId", sessionId)
             .get()
             .await()
 
+        return buildOrderSummaries(orderDocs.documents, loadCategoryMap(storeId))
+    }
+
+    fun listenOrderSummaries(
+        sessionId: String,
+        onUpdate: (List<OrderSummaryItem>) -> Unit,
+        onError: (Exception) -> Unit = {}
+    ): ListenerRegistration =
+        db.collection(FirestorePaths.ORDERS)
+            .whereEqualTo("sessionId", sessionId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    onError(error)
+                    return@addSnapshotListener
+                }
+                onUpdate(buildOrderSummaries(snapshot?.documents.orEmpty(), emptyMap()))
+            }
+
+    private suspend fun loadCategoryMap(storeId: String?): Map<String, String> {
+        if (storeId.isNullOrBlank()) return emptyMap()
+        val menuItemsDocs = db.collection(FirestorePaths.STORES).document(storeId)
+            .collection("menuItems").get().await()
+        return menuItemsDocs.documents.mapNotNull { doc ->
+            val name = doc.getString("name").orEmpty()
+            val category = MenuCategories.normalize(doc.getString("category").orEmpty())
+            if (name.isBlank()) null else name to category
+        }.toMap()
+    }
+
+    private fun buildOrderSummaries(
+        orderDocs: List<DocumentSnapshot>,
+        categoryMap: Map<String, String>
+    ): List<OrderSummaryItem> {
         val grouped = linkedMapOf<String, OrderSummaryItem>()
-        orderDocs.documents.forEach { doc ->
+        orderDocs.forEach { doc ->
             val rawItems = doc.get("items") as? List<*> ?: return@forEach
             rawItems.forEach { raw ->
                 val item = raw as? Map<*, *> ?: return@forEach
@@ -356,9 +442,11 @@ class SessionRepository(
                 val amount = item["subtotal"].asInt().takeIf { it > 0 }
                     ?: item["amount"].asInt().takeIf { it > 0 }
                     ?: (item["unitPrice"].asInt() * quantity)
+                val category = MenuCategories.normalize(item["category"].asString())
+                    .ifBlank { categoryMap[name] ?: "" }
                 val previous = grouped[name]
                 grouped[name] = if (previous == null) {
-                    OrderSummaryItem(name, quantity, amount)
+                    OrderSummaryItem(name, quantity, amount, category)
                 } else {
                     previous.copy(
                         quantity = previous.quantity + quantity,
@@ -371,10 +459,7 @@ class SessionRepository(
     }
 
     private fun String.normalizeInviteCode(): String =
-        trim()
-            .trim('"', '\'')
-            .replace(" ", "")
-            .replace("-", "")
+        TableInviteCodes.normalize(this)
 
     private fun DocumentSnapshot.normalizedInviteCode(): String =
         stringValue("inviteCode").orEmpty()
@@ -386,5 +471,5 @@ class SessionRepository(
             ?: firstOrNull { it.isJoinable() }
 
     private fun Session.isJoinable(): Boolean =
-        status != "closed"
+        status.isBlank() || status == "active" || status == "settling"
 }

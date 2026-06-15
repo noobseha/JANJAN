@@ -28,14 +28,22 @@ class ParticipantAdapter(
             cbPaid.setOnCheckedChangeListener(null)
             cbPaid.isChecked = item.paidStatus
 
-            if (item.paidStatus) {
-                tvPaidStatus.text = "결제완료"
-                tvPaidStatus.setTextColor(android.graphics.Color.parseColor("#4DB6AC"))
-                tvPaidStatus.setBackgroundColor(android.graphics.Color.parseColor("#C8E6C9"))
-            } else {
-                tvPaidStatus.text = "미결제"
-                tvPaidStatus.setTextColor(android.graphics.Color.parseColor("#FF5252"))
-                tvPaidStatus.setBackgroundColor(android.graphics.Color.parseColor("#FFCDD2"))
+            when {
+                item.paidStatus -> {
+                    tvPaidStatus.text = "결제완료"
+                    tvPaidStatus.setTextColor(android.graphics.Color.parseColor("#4DB6AC"))
+                    tvPaidStatus.setBackgroundColor(android.graphics.Color.parseColor("#C8E6C9"))
+                }
+                item.pendingApproval -> {
+                    tvPaidStatus.text = "승인대기"
+                    tvPaidStatus.setTextColor(android.graphics.Color.parseColor("#F59E0B"))
+                    tvPaidStatus.setBackgroundColor(android.graphics.Color.parseColor("#FEF3C7"))
+                }
+                else -> {
+                    tvPaidStatus.text = "미결제"
+                    tvPaidStatus.setTextColor(android.graphics.Color.parseColor("#FF5252"))
+                    tvPaidStatus.setBackgroundColor(android.graphics.Color.parseColor("#FFCDD2"))
+                }
             }
 
             cbPaid.setOnCheckedChangeListener { _, isChecked ->

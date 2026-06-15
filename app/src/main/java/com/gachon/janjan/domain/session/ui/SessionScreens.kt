@@ -1,6 +1,8 @@
 package com.gachon.janjan.domain.session.ui
 
 import android.Manifest
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -11,6 +13,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -26,9 +29,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -65,12 +70,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -84,18 +92,26 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.gachon.janjan.ChangePasswordActivity
+import com.gachon.janjan.LandingActivity
 import com.gachon.janjan.data.model.Session
+import com.gachon.janjan.data.repository.AccountDeletionRepository
+import com.gachon.janjan.domain.session.FirebaseConfig
+import com.gachon.janjan.domain.session.model.ActivityVisibility
 import com.gachon.janjan.domain.session.model.DrinkHistoryItem
 import com.gachon.janjan.domain.session.model.GlassUserMapping
 import com.gachon.janjan.domain.session.model.HealthSummary
@@ -105,7 +121,10 @@ import com.gachon.janjan.domain.session.model.UserProfile
 import com.gachon.janjan.domain.session.viewmodel.HistoryHealthViewModel
 import com.gachon.janjan.domain.session.viewmodel.RankingViewModel
 import com.gachon.janjan.domain.session.viewmodel.SessionViewModel
+import com.google.firebase.auth.EmailAuthProvider
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.time.YearMonth
@@ -124,6 +143,43 @@ private val Green = Color(0xFF22C55E)
 
 private val currency = DecimalFormat("#,###")
 
+private data class JanjanAdaptiveMetrics(
+    val contentMaxWidth: Dp = 480.dp,
+    val horizontalPadding: Dp = 24.dp,
+    val scannerSize: Dp = 256.dp,
+    val compactCardPadding: Dp = 18.dp
+)
+
+private val LocalJanjanAdaptiveMetrics = staticCompositionLocalOf { JanjanAdaptiveMetrics() }
+
+private fun buildJanjanAdaptiveMetrics(maxWidth: Dp): JanjanAdaptiveMetrics =
+    when {
+        maxWidth < 360.dp -> JanjanAdaptiveMetrics(
+            contentMaxWidth = maxWidth,
+            horizontalPadding = 16.dp,
+            scannerSize = 220.dp,
+            compactCardPadding = 16.dp
+        )
+        maxWidth < 600.dp -> JanjanAdaptiveMetrics(
+            contentMaxWidth = 480.dp,
+            horizontalPadding = 24.dp,
+            scannerSize = 256.dp,
+            compactCardPadding = 18.dp
+        )
+        maxWidth < 840.dp -> JanjanAdaptiveMetrics(
+            contentMaxWidth = 560.dp,
+            horizontalPadding = 28.dp,
+            scannerSize = 288.dp,
+            compactCardPadding = 20.dp
+        )
+        else -> JanjanAdaptiveMetrics(
+            contentMaxWidth = 640.dp,
+            horizontalPadding = 32.dp,
+            scannerSize = 304.dp,
+            compactCardPadding = 22.dp
+        )
+    }
+
 @Composable
 fun SessionHomeScreen(
     sessionViewModel: SessionViewModel,
@@ -132,7 +188,8 @@ fun SessionHomeScreen(
     onQrScan: () -> Unit,
     onInviteCode: () -> Unit,
     onOrder: () -> Unit,
-    onGlassColor: (String) -> Unit
+    onGlassColor: (String) -> Unit,
+    onShowPaymentMethod: (Int, String, (String) -> Unit) -> Unit
 ) {
     val activeSession by sessionViewModel.activeSession.collectAsStateWithLifecycle()
     val mappings by sessionViewModel.glassMappings.collectAsStateWithLifecycle()
@@ -141,6 +198,7 @@ fun SessionHomeScreen(
     val isLoading by sessionViewModel.isLoading.collectAsStateWithLifecycle()
     val histories by historyHealthViewModel.histories.collectAsStateWithLifecycle()
     val healthSummary by historyHealthViewModel.healthSummary.collectAsStateWithLifecycle()
+    val errorMessage by historyHealthViewModel.errorMessage.collectAsStateWithLifecycle()
     val userProfile by sessionViewModel.userProfile.collectAsStateWithLifecycle()
 
     var tab by remember { mutableStateOf("home") }
@@ -148,9 +206,18 @@ fun SessionHomeScreen(
     var selectedHistory by remember { mutableStateOf<DrinkHistoryItem?>(null) }
     var showSettlement by remember { mutableStateOf(false) }
     var settlementSession by remember { mutableStateOf<Session?>(null) }
+    val context = LocalContext.current
 
-    LaunchedEffect(Unit) {
-        historyHealthViewModel.load()
+    LaunchedEffect(activeSession) {
+        if (activeSession == null) {
+            historyHealthViewModel.load()
+        }
+    }
+
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let {
+            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_LONG).show()
+        }
     }
 
     JanjanSurface {
@@ -170,9 +237,11 @@ fun SessionHomeScreen(
                 onStartSettlement = { sessionId, onComplete ->
                     sessionViewModel.startSettlement(sessionId, onComplete)
                 },
-                onCompleteSettlement = { sessionId, onComplete ->
-                    sessionViewModel.completeSettlement(sessionId, onComplete)
+                onCompleteSettlement = { sessionId, paymentMethod, onComplete ->
+                    sessionViewModel.completeSettlement(sessionId, paymentMethod, onComplete)
                 },
+                externalPaymentFlow = sessionViewModel.externalPaymentCompleteEvent,
+                onShowPaymentMethod = onShowPaymentMethod,
                 onDone = {
                     showSettlement = false
                     settlementSession = null
@@ -203,10 +272,17 @@ fun SessionHomeScreen(
                             onDeleteHistory = { historyHealthViewModel.removeHistoryLocally(it.sessionId) },
                             onSaveProfile = { nickname, bio ->
                                 sessionViewModel.saveUserProfile(nickname, bio)
+                            },
+                            onSaveActivityVisibility = { visibility ->
+                                sessionViewModel.saveActivityVisibility(visibility)
+                            },
+                            onUploadProfileImage = { uri ->
+                                sessionViewModel.uploadProfileImage(context, uri)
                             }
                         )
                         else -> HomeContent(
                             activeSession = activeSession,
+                            userProfile = userProfile,
                             myUserId = sessionViewModel.currentUserId,
                             mappings = mappings,
                             participants = participants,
@@ -246,7 +322,7 @@ fun QrScanScreen(
     sessionViewModel: SessionViewModel,
     onBack: () -> Unit,
     onInvite: () -> Unit,
-    onOrderReady: (String) -> Unit
+    onSessionJoined: (String) -> Unit
 ) {
     val context = LocalContext.current
     var cameraGranted by remember {
@@ -256,8 +332,11 @@ fun QrScanScreen(
         )
     }
     var isJoining by remember { mutableStateOf(false) }
+    var lastFailedQr by remember { mutableStateOf<String?>(null) }
     var scanProgress by remember { mutableIntStateOf(0) }
     var statusText by remember { mutableStateOf("카메라를 QR코드에 맞춰주세요") }
+    val adaptive = LocalJanjanAdaptiveMetrics.current
+    val scannerSize = adaptive.scannerSize
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -310,7 +389,7 @@ fun QrScanScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(256.dp)
+                        .size(scannerSize)
                         .clip(RoundedCornerShape(22.dp))
                         .border(2.dp, Mint.copy(alpha = 0.36f), RoundedCornerShape(22.dp))
                         .background(BgLight),
@@ -320,15 +399,16 @@ fun QrScanScreen(
                         QrCameraPreview(
                             modifier = Modifier.fillMaxSize(),
                             onQrCode = { value ->
-                                if (isJoining) return@QrCameraPreview
+                                if (isJoining || value == lastFailedQr) return@QrCameraPreview
                                 isJoining = true
                                 statusText = "테이블 정보를 확인하는 중..."
                                 sessionViewModel.joinByQrPayload(value) { success, sessionId ->
                                     if (success && sessionId != null) {
-                                        onOrderReady(sessionId)
+                                        onSessionJoined(sessionId)
                                     } else {
                                         isJoining = false
-                                        statusText = "인식된 QR을 JANJAN 테이블로 연결할 수 없어요"
+                                        lastFailedQr = value
+                                        statusText = "잘못된 QR이거나 종료된 테이블입니다"
                                     }
                                 }
                             }
@@ -354,7 +434,7 @@ fun QrScanScreen(
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
-                                .padding(top = ((scanProgress / 100f) * 238).dp)
+                                .padding(top = ((scanProgress / 100f) * (scannerSize.value - 18f)).dp)
                                 .padding(horizontal = 8.dp)
                                 .fillMaxWidth()
                                 .height(2.dp)
@@ -376,20 +456,7 @@ fun QrScanScreen(
                 Text("테이블 QR코드를 스캔해주세요", color = TextMain, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
                 Text(statusText, color = TextDim, fontSize = 14.sp, textAlign = TextAlign.Center)
-                if (cameraGranted && !isJoining) {
-                    Spacer(Modifier.height(18.dp))
-                    LinearProgressIndicator(
-                        progress = { scanProgress / 100f },
-                        modifier = Modifier
-                            .width(192.dp)
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(999.dp)),
-                        color = Mint,
-                        trackColor = BgMuted
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text("인식 중... $scanProgress%", color = TextDim, fontSize = 13.sp)
-                }
+                // Removed progress indicator as requested
                 if (!cameraGranted) {
                     Spacer(Modifier.height(18.dp))
                     Button(
@@ -409,7 +476,7 @@ fun QrScanScreen(
 fun InviteCodeScreen(
     sessionViewModel: SessionViewModel,
     onBack: () -> Unit,
-    onOrderReady: (String) -> Unit
+    onSessionJoined: (String) -> Unit
 ) {
     val isLoading by sessionViewModel.isLoading.collectAsStateWithLifecycle()
     var code by remember { mutableStateOf("") }
@@ -435,6 +502,16 @@ fun InviteCodeScreen(
     }
 
     JanjanSurface {
+        val adaptive = LocalJanjanAdaptiveMetrics.current
+        val codeCellWidth = when {
+            adaptive.contentMaxWidth < 360.dp -> 42.dp
+            adaptive.contentMaxWidth < 600.dp -> 50.dp
+            else -> 54.dp
+        }
+        val codeCellHeight = when {
+            adaptive.contentMaxWidth < 360.dp -> 54.dp
+            else -> 60.dp
+        }
         HeaderScaffold(
             title = "초대코드 입력",
             onBack = onBack,
@@ -442,7 +519,7 @@ fun InviteCodeScreen(
                 Button(
                     onClick = {
                         sessionViewModel.joinByInviteCode(code) { success, sessionId ->
-                            if (success && sessionId != null) onOrderReady(sessionId)
+                            if (success && sessionId != null) onSessionJoined(sessionId)
                         }
                     },
                     enabled = code.length == 6 && !isLoading,
@@ -493,16 +570,26 @@ fun InviteCodeScreen(
                     textAlign = TextAlign.Center
                 )
                 Spacer(Modifier.height(30.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(if (adaptive.contentMaxWidth < 360.dp) 6.dp else 8.dp)) {
                     repeat(6) { index ->
                         val cellValue = code.getOrNull(index)?.toString().orEmpty()
-                        OutlinedTextField(
+                        androidx.compose.foundation.text.BasicTextField(
                             value = cellValue,
                             onValueChange = { setCharsFrom(index, it) },
                             singleLine = true,
+                            textStyle = TextStyle(
+                                fontSize = 22.sp,
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.Bold,
+                                color = TextMain
+                            ),
+                            keyboardOptions = KeyboardOptions(
+                                capitalization = KeyboardCapitalization.Characters,
+                                keyboardType = KeyboardType.Ascii
+                            ),
                             modifier = Modifier
-                                .width(44.dp)
-                                .height(56.dp)
+                                .width(codeCellWidth)
+                                .height(codeCellHeight)
                                 .focusRequester(focusRequesters[index])
                                 .onKeyEvent { event ->
                                     if (
@@ -517,22 +604,24 @@ fun InviteCodeScreen(
                                         false
                                     }
                                 },
-                            textStyle = MaterialTheme.typography.titleLarge.copy(
-                                textAlign = TextAlign.Center,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = BgLight,
-                                unfocusedContainerColor = if (cellValue.isNotBlank()) Mint.copy(alpha = 0.10f) else BgLight,
-                                focusedBorderColor = Mint,
-                                unfocusedBorderColor = if (cellValue.isNotBlank()) Mint else BorderMint,
-                                cursorColor = Mint
-                            ),
-                            keyboardOptions = KeyboardOptions(
-                                capitalization = KeyboardCapitalization.Characters,
-                                keyboardType = KeyboardType.Ascii
-                            )
+                            decorationBox = { innerTextField ->
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            color = if (cellValue.isNotBlank()) Mint.copy(alpha = 0.10f) else BgLight,
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                        .border(
+                                            width = 1.dp,
+                                            color = if (cellValue.isNotBlank()) Mint else BorderMint,
+                                            shape = RoundedCornerShape(8.dp)
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    innerTextField()
+                                }
+                            }
                         )
                     }
                 }
@@ -570,14 +659,17 @@ fun GlassColorScreen(
         color = backgroundColor,
         contentColor = contentColorFor(backgroundColor)
     ) {
-        Box(contentAlignment = Alignment.TopCenter) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .widthIn(max = 480.dp)
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+        BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+            val screenWidth = maxWidth
+            val adaptive = buildJanjanAdaptiveMetrics(maxWidth)
+            CompositionLocalProvider(LocalJanjanAdaptiveMetrics provides adaptive) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .widthIn(max = adaptive.contentMaxWidth)
+                        .padding(horizontal = adaptive.horizontalPadding, vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -594,55 +686,61 @@ fun GlassColorScreen(
                     )
                     Spacer(Modifier.width(48.dp))
                 }
-                Spacer(Modifier.weight(1f))
-                Box(
-                    modifier = Modifier
-                        .size(144.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.22f))
-                        .border(3.dp, Color.White.copy(alpha = 0.42f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.LocalBar, contentDescription = null, tint = Color.White, modifier = Modifier.size(82.dp))
-                }
-                Spacer(Modifier.height(24.dp))
-                Text("자동 배정되었습니다", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "앱이 자동으로 고유한 색깔을 배정했어요\n스마트폰 화면으로 술잔을 인식할게요!",
-                    color = Color.White.copy(alpha = 0.84f),
-                    textAlign = TextAlign.Center,
-                    fontSize = 14.sp
-                )
-                Spacer(Modifier.height(18.dp))
-                TextButton(
-                    onClick = {
-                        assignedColor = pickAvailableGlassColor(
-                            usedColors = usedColors,
-                            excluding = setOf(resolvedColor.uppercase(Locale.US))
+                    Spacer(Modifier.weight(1f))
+                    Box(
+                        modifier = Modifier
+                            .size(if (screenWidth < 360.dp) 120.dp else 144.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.22f))
+                            .border(3.dp, Color.White.copy(alpha = 0.42f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.LocalBar,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(if (screenWidth < 360.dp) 68.dp else 82.dp)
                         )
                     }
-                ) {
-                    Text("다시 배정받기", color = Color.White, fontWeight = FontWeight.Bold)
-                }
-                Spacer(Modifier.weight(1f))
-                Button(
-                    onClick = {
-                        sessionViewModel.assignGlassColor(sessionId, resolvedColor, "soju") {
-                            onDone(sessionId)
+                    Spacer(Modifier.height(24.dp))
+                    Text("자동 배정되었습니다", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "앱이 자동으로 고유한 색깔을 배정했어요\n스마트폰 화면으로 술잔을 인식할게요!",
+                        color = Color.White.copy(alpha = 0.84f),
+                        textAlign = TextAlign.Center,
+                        fontSize = 14.sp
+                    )
+                    Spacer(Modifier.height(18.dp))
+                    TextButton(
+                        onClick = {
+                            assignedColor = pickAvailableGlassColor(
+                                usedColors = usedColors,
+                                excluding = setOf(resolvedColor.uppercase(Locale.US))
+                            )
                         }
-                    },
-                    enabled = sessionId.isNotBlank() && assignedColor != null && !isLoading,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = TextMain),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = TextMain, strokeWidth = 2.dp)
-                    } else {
-                        Text("이 색으로 사용하기", fontWeight = FontWeight.Bold)
+                    ) {
+                        Text("다시 배정받기", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Button(
+                        onClick = {
+                            sessionViewModel.assignGlassColor(sessionId, resolvedColor, "soju") {
+                                onDone(sessionId)
+                            }
+                        },
+                        enabled = sessionId.isNotBlank() && assignedColor != null && !isLoading,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = TextMain),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = TextMain, strokeWidth = 2.dp)
+                        } else {
+                            Text("이 색으로 사용하기", fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
@@ -657,7 +755,7 @@ fun DoneScreen(
     onHome: () -> Unit
 ) {
     val session by sessionViewModel.activeSession.collectAsStateWithLifecycle()
-    val orders by sessionViewModel.orderItems.collectAsStateWithLifecycle()
+    val orders by sessionViewModel.lastOrderedItems.collectAsStateWithLifecycle()
     val participants by sessionViewModel.participants.collectAsStateWithLifecycle()
     val myColor = participants.firstOrNull { it.userId == sessionViewModel.currentUserId }?.glassColor
     val tableLabel = session?.tableNumber?.takeIf { it > 0 }?.toString()
@@ -674,8 +772,8 @@ fun DoneScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .widthIn(max = 480.dp)
-                .padding(24.dp),
+                .widthIn(max = LocalJanjanAdaptiveMetrics.current.contentMaxWidth)
+                .padding(LocalJanjanAdaptiveMetrics.current.horizontalPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -729,6 +827,7 @@ fun DoneScreen(
 @Composable
 private fun HomeContent(
     activeSession: Session?,
+    userProfile: UserProfile,
     myUserId: String,
     mappings: List<com.gachon.janjan.domain.session.model.GlassUserMapping>,
     participants: List<com.gachon.janjan.domain.session.model.SessionParticipant>,
@@ -744,13 +843,18 @@ private fun HomeContent(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .widthIn(max = 480.dp),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(24.dp),
+            .widthIn(max = LocalJanjanAdaptiveMetrics.current.contentMaxWidth),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = LocalJanjanAdaptiveMetrics.current.horizontalPadding,
+            top = LocalJanjanAdaptiveMetrics.current.horizontalPadding,
+            end = LocalJanjanAdaptiveMetrics.current.horizontalPadding,
+            bottom = LocalJanjanAdaptiveMetrics.current.horizontalPadding + 48.dp
+        ),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
             Text("안녕하세요", color = TextSub, fontSize = 14.sp)
-            Text("사용자 님", color = TextMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("${userProfile.nickname} 님", color = TextMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
 
         if (activeSession == null) {
@@ -815,9 +919,7 @@ private fun HomeContent(
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         activeFriends.forEach { friend ->
-                            val drinkCount = mappings
-                                .filter { it.userId == friend.userId }
-                                .sumOf { it.drinkCount }
+                            val drinkCount = friend.sojuDrinkCount + friend.beerDrinkCount
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -826,14 +928,12 @@ private fun HomeContent(
                                     .padding(10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(BgMuted),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(friend.userName.take(1).ifBlank { "?" }, color = TextMain, fontSize = 14.sp)
+                                Box(contentAlignment = Alignment.Center) {
+                                    ProfileInitial(
+                                        name = friend.userName.ifBlank { "참여자" },
+                                        size = 40,
+                                        imageUrl = friend.imageUrl
+                                    )
                                     Box(
                                         modifier = Modifier
                                             .size(10.dp)
@@ -903,10 +1003,41 @@ private fun ActiveSessionCard(
 ) {
     val participant = participants.firstOrNull { it.userId == myUserId }
     val cardColor = participant?.glassColor?.toComposeColor() ?: Mint
-    val mySoju = mappings.filter { it.userId == myUserId && it.drinkType == "soju" }.sumOf { it.drinkCount }
-    val myBeer = mappings.filter { it.userId == myUserId && it.drinkType == "beer" }.sumOf { it.drinkCount }
+    val mySoju = participant?.sojuDrinkCount ?: 0
+    val myBeer = participant?.beerDrinkCount ?: 0
     val headCount = participants.size.coerceAtLeast(1)
-    val expectedAmount = orders.sumOf { it.amount } / headCount
+    
+    val totalSojuCount = participants.sumOf { it.sojuDrinkCount }
+    val totalBeerCount = participants.sumOf { it.beerDrinkCount }
+    
+    val totalAmount = orders.sumOf { it.amount }
+    val sessionTotalSojuPrice = orders.filter { it.category.contains("소주") || it.category.equals("soju", ignoreCase = true) || (it.category.isBlank() && it.name.contains("소주")) }.sumOf { it.amount }
+    val sessionTotalBeerPrice = orders.filter { it.category.contains("맥주") || it.category.equals("beer", ignoreCase = true) || (it.category.isBlank() && it.name.contains("맥주")) }.sumOf { it.amount }
+    val sessionTotalFoodPrice = totalAmount - sessionTotalSojuPrice - sessionTotalBeerPrice
+    
+    var myExpectedPrice = 0
+    if (headCount > 0) {
+        myExpectedPrice += sessionTotalFoodPrice / headCount
+    }
+    if (totalSojuCount > 0) {
+        myExpectedPrice += (sessionTotalSojuPrice * mySoju) / totalSojuCount
+    }
+    if (totalBeerCount > 0) {
+        myExpectedPrice += (sessionTotalBeerPrice * myBeer) / totalBeerCount
+    }
+    
+    // Fallback if everything is 0 but there is a totalAmount
+    if (myExpectedPrice == 0 && totalAmount > 0 && sessionTotalSojuPrice == 0 && sessionTotalBeerPrice == 0 && sessionTotalFoodPrice == 0) {
+        val totalDrinkCount = totalSojuCount + totalBeerCount
+        val myDrinkCount = mySoju + myBeer
+        myExpectedPrice = if (totalDrinkCount > 0) {
+            (totalAmount.toLong() * myDrinkCount / totalDrinkCount).toInt()
+        } else {
+            totalAmount / headCount
+        }
+    }
+    val expectedAmount = myExpectedPrice
+    
     var showColorFullscreen by remember { mutableStateOf(false) }
 
     Column {
@@ -922,7 +1053,7 @@ private fun ActiveSessionCard(
                             listOf(cardColor, cardColor.copy(alpha = 0.78f))
                         )
                     )
-                    .padding(24.dp),
+                    .padding(LocalJanjanAdaptiveMetrics.current.compactCardPadding),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
@@ -1018,9 +1149,12 @@ private fun ActiveSessionCard(
 private data class SettlementParticipantUi(
     val userId: String,
     val name: String,
+    val imageUrl: String,
     val drinkCount: Int,
     val amount: Int,
-    val isMe: Boolean
+    val isMe: Boolean,
+    val paidStatus: Boolean,
+    val pendingApproval: Boolean
 )
 
 @Composable
@@ -1033,27 +1167,54 @@ private fun SettlementScreen(
     isLoading: Boolean,
     onBack: () -> Unit,
     onStartSettlement: (String, (Boolean) -> Unit) -> Unit,
-    onCompleteSettlement: (String, (Boolean) -> Unit) -> Unit,
+    onCompleteSettlement: (String, String, (Boolean) -> Unit) -> Unit,
+    externalPaymentFlow: kotlinx.coroutines.flow.SharedFlow<String>,
+    onShowPaymentMethod: (Int, String, (String) -> Unit) -> Unit,
     onDone: () -> Unit
 ) {
     var settlementStarted by remember(session.sessionId) { mutableStateOf(session.status == "settling") }
-    var showPaymentDialog by remember { mutableStateOf(false) }
-    var paymentMethod by remember { mutableStateOf<String?>(null) }
     var paymentCompleted by remember { mutableStateOf(false) }
+    var paidAmount by remember { mutableStateOf(0) }
     var errorText by remember { mutableStateOf<String?>(null) }
 
     val totalAmount = orders.sumOf { it.amount }
-    val rows = remember(participants, mappings, orders, myUserId) {
+    val rows = remember(session, participants, orders, myUserId) {
         buildSettlementRows(
+            session = session,
             participants = participants,
-            mappings = mappings,
-            totalAmount = totalAmount,
+            orders = orders,
             myUserId = myUserId
         )
     }
     val myRow = rows.firstOrNull { it.isMe } ?: rows.firstOrNull()
     val tableLabel = session.tableNumber.takeIf { it > 0 }?.toString()
         ?: session.tableId.ifBlank { "-" }
+
+    LaunchedEffect(externalPaymentFlow) {
+        externalPaymentFlow.collect { method ->
+            errorText = null
+            paidAmount = myRow?.amount ?: 0
+            onCompleteSettlement(session.sessionId, method) { success ->
+                if (success) {
+                    paymentCompleted = true
+                } else {
+                    errorText = "결제 완료 상태를 저장하지 못했어요."
+                }
+            }
+        }
+    }
+
+    fun completePayment(paymentMethod: String) {
+        errorText = null
+        paidAmount = myRow?.amount ?: 0
+        onCompleteSettlement(session.sessionId, paymentMethod) { success ->
+            if (success) {
+                paymentCompleted = true
+            } else {
+                errorText = "결제 완료 상태를 저장하지 못했어요."
+            }
+        }
+    }
 
     fun openPaymentDialog() {
         if (session.sessionId.isBlank()) {
@@ -1062,28 +1223,19 @@ private fun SettlementScreen(
         }
         errorText = null
         if (settlementStarted) {
-            showPaymentDialog = true
+            onShowPaymentMethod(myRow?.amount ?: 0, session.storeName) { paymentMethod ->
+                completePayment(paymentMethod)
+            }
             return
         }
         onStartSettlement(session.sessionId) { success ->
             if (success) {
                 settlementStarted = true
-                showPaymentDialog = true
+                onShowPaymentMethod(myRow?.amount ?: 0, session.storeName) { paymentMethod ->
+                    completePayment(paymentMethod)
+                }
             } else {
                 errorText = "정산 상태를 저장하지 못했어요."
-            }
-        }
-    }
-
-    fun completePayment() {
-        errorText = null
-        onCompleteSettlement(session.sessionId) { success ->
-            if (success) {
-                showPaymentDialog = false
-                paymentMethod = null
-                paymentCompleted = true
-            } else {
-                errorText = "결제 완료 상태를 저장하지 못했어요."
             }
         }
     }
@@ -1091,8 +1243,8 @@ private fun SettlementScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .widthIn(max = 480.dp)
-            .padding(horizontal = 24.dp)
+            .widthIn(max = LocalJanjanAdaptiveMetrics.current.contentMaxWidth)
+            .padding(horizontal = LocalJanjanAdaptiveMetrics.current.horizontalPadding)
     ) {
         Row(
             modifier = Modifier
@@ -1137,7 +1289,7 @@ private fun SettlementScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(24.dp),
+                            .padding(LocalJanjanAdaptiveMetrics.current.compactCardPadding),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text("오늘 술자리 총 금액", color = TextSub, fontSize = 14.sp)
@@ -1165,7 +1317,7 @@ private fun SettlementScreen(
                             modifier = Modifier.padding(18.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            ProfileInitial(name = row.name, size = 42)
+                            ProfileInitial(name = row.name, size = 42, imageUrl = row.imageUrl)
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text("${row.name}  나", color = TextMain, fontWeight = FontWeight.Bold)
@@ -1186,13 +1338,17 @@ private fun SettlementScreen(
                     ) {
                         Column {
                             val displayRows = rows.filterNot { it.isMe }.ifEmpty { rows }
-                            displayRows.forEachIndexed { index, row ->
-                                SettlementParticipantRow(
-                                    row = row,
-                                    status = if (row.isMe && paymentCompleted) "완료" else "미완료",
-                                    showDivider = index < displayRows.lastIndex
-                                )
-                            }
+	                            displayRows.forEachIndexed { index, row ->
+	                                SettlementParticipantRow(
+	                                    row = row,
+	                                    status = when {
+	                                        row.paidStatus || (row.isMe && paymentCompleted) -> "완료"
+	                                        row.pendingApproval -> "승인대기"
+	                                        else -> "미완료"
+	                                    },
+	                                    showDivider = index < displayRows.lastIndex
+	                                )
+	                            }
                         }
                     }
                 }
@@ -1230,23 +1386,9 @@ private fun SettlementScreen(
         }
     }
 
-    if (showPaymentDialog && myRow != null) {
-        PaymentMethodDialog(
-            amount = myRow.amount,
-            paymentMethod = paymentMethod,
-            isLoading = isLoading,
-            onPaymentMethodChange = { paymentMethod = it },
-            onDismiss = {
-                showPaymentDialog = false
-                paymentMethod = null
-            },
-            onCompletePayment = { completePayment() }
-        )
-    }
-
-    if (paymentCompleted && myRow != null) {
+    if (paymentCompleted) {
         PaymentCompletedDialog(
-            amount = myRow.amount,
+            amount = paidAmount,
             storeLabel = "${session.storeName.ifBlank { "가게" }} · 테이블 $tableLabel",
             onConfirm = {
                 paymentCompleted = false
@@ -1446,7 +1588,7 @@ private fun PaymentCompletedDialog(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.6f))
-                .padding(24.dp),
+                .padding(LocalJanjanAdaptiveMetrics.current.horizontalPadding),
             contentAlignment = Alignment.Center
         ) {
             Card(
@@ -1498,7 +1640,7 @@ private fun SettlementParticipantRow(
                 .padding(vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ProfileInitial(name = row.name, size = 34)
+            ProfileInitial(name = row.name, size = 34, imageUrl = row.imageUrl)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(row.name, color = TextMain)
@@ -1515,46 +1657,85 @@ private fun SettlementParticipantRow(
 }
 
 @Composable
-private fun ProfileInitial(name: String, size: Int) {
-    Box(
-        modifier = Modifier
-            .size(size.dp)
-            .clip(CircleShape)
-            .background(BgMuted),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(name.take(1).ifBlank { "?" }, color = TextMain, fontSize = (size / 2.7f).sp)
+private fun ProfileInitial(name: String, size: Int, imageUrl: String? = null) {
+    if (!imageUrl.isNullOrEmpty()) {
+        coil.compose.AsyncImage(
+            model = imageUrl,
+            contentDescription = "프로필",
+            modifier = Modifier
+                .size(size.dp)
+                .clip(CircleShape)
+                .background(BgMuted),
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+        )
+    } else {
+        Box(
+            modifier = Modifier
+                .size(size.dp)
+                .clip(CircleShape)
+                .background(BgMuted),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(name.take(1).ifBlank { "?" }, color = TextMain, fontSize = (size / 2.7f).sp)
+        }
     }
 }
 
 private fun buildSettlementRows(
+    session: Session,
     participants: List<SessionParticipant>,
-    mappings: List<GlassUserMapping>,
-    totalAmount: Int,
+    orders: List<OrderSummaryItem>,
     myUserId: String
 ): List<SettlementParticipantUi> {
     val safeParticipants = participants.ifEmpty {
         listOf(SessionParticipant(userId = myUserId, userName = "사용자"))
     }
-    val drinkCountByUser = mappings
-        .groupBy { it.userId }
-        .mapValues { (_, userMappings) -> userMappings.sumOf { it.drinkCount } }
-    val totalDrinkCount = drinkCountByUser.values.sum()
-    val fallbackShare = if (safeParticipants.isEmpty()) 0 else totalAmount / safeParticipants.size
+    val headCount = safeParticipants.size
+    val totalSojuCount = safeParticipants.sumOf { it.sojuDrinkCount }
+    val totalBeerCount = safeParticipants.sumOf { it.beerDrinkCount }
+    
+    val totalAmount = orders.sumOf { it.amount }
+    val sessionTotalSojuPrice = orders.filter { it.category.contains("소주") || it.category.equals("soju", ignoreCase = true) || (it.category.isBlank() && it.name.contains("소주")) }.sumOf { it.amount }
+    val sessionTotalBeerPrice = orders.filter { it.category.contains("맥주") || it.category.equals("beer", ignoreCase = true) || (it.category.isBlank() && it.name.contains("맥주")) }.sumOf { it.amount }
+    val sessionTotalFoodPrice = totalAmount - sessionTotalSojuPrice - sessionTotalBeerPrice
 
     return safeParticipants.map { participant ->
-        val drinks = drinkCountByUser[participant.userId] ?: 0
-        val amount = when {
-            totalAmount <= 0 -> 0
-            totalDrinkCount > 0 -> totalAmount * drinks / totalDrinkCount
-            else -> fallbackShare
+        var amount = 0
+        
+        // 1. N-빵 (Food)
+        if (headCount > 0) {
+            amount += sessionTotalFoodPrice / headCount
         }
+        // 2. Soju share
+        if (totalSojuCount > 0) {
+            amount += (sessionTotalSojuPrice * participant.sojuDrinkCount) / totalSojuCount
+        }
+        // 3. Beer share
+        if (totalBeerCount > 0) {
+            amount += (sessionTotalBeerPrice * participant.beerDrinkCount) / totalBeerCount
+        }
+        
+        // Fallback
+        if (amount == 0 && totalAmount > 0 && sessionTotalSojuPrice == 0 && sessionTotalBeerPrice == 0 && sessionTotalFoodPrice == 0) {
+            val totalDrinkCount = totalSojuCount + totalBeerCount
+            val drinks = participant.sojuDrinkCount + participant.beerDrinkCount
+            amount = when {
+                totalDrinkCount > 0 -> (totalAmount.toLong() * drinks / totalDrinkCount).toInt()
+                headCount > 0 -> totalAmount / headCount
+                else -> 0
+            }
+        }
+        
+        val drinks = participant.sojuDrinkCount + participant.beerDrinkCount
         SettlementParticipantUi(
             userId = participant.userId,
             name = participant.userName.ifBlank { "참여자" },
+            imageUrl = participant.imageUrl,
             drinkCount = drinks,
             amount = amount,
-            isMe = participant.userId == myUserId
+            isMe = participant.userId == myUserId,
+            paidStatus = participant.paidStatus,
+            pendingApproval = participant.pendingApproval
         )
     }
 }
@@ -1579,7 +1760,9 @@ private fun ProfileScreen(
     onProfileTabChange: (String) -> Unit,
     onHistoryClick: (DrinkHistoryItem) -> Unit,
     onDeleteHistory: (DrinkHistoryItem) -> Unit,
-    onSaveProfile: (String, String) -> Unit
+    onSaveProfile: (String, String) -> Unit,
+    onSaveActivityVisibility: (ActivityVisibility) -> Unit,
+    onUploadProfileImage: (android.net.Uri) -> Unit
 ) {
     var settingsScreen by remember { mutableStateOf<String?>(null) }
 
@@ -1588,6 +1771,8 @@ private fun ProfileScreen(
             screen = screen,
             userProfile = userProfile,
             onSaveProfile = onSaveProfile,
+            onSaveActivityVisibility = onSaveActivityVisibility,
+            onUploadProfileImage = onUploadProfileImage,
             onBack = { settingsScreen = null }
         )
         return
@@ -1596,21 +1781,17 @@ private fun ProfileScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .widthIn(max = 480.dp),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(24.dp),
+            .widthIn(max = LocalJanjanAdaptiveMetrics.current.contentMaxWidth),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(LocalJanjanAdaptiveMetrics.current.horizontalPadding),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier
-                        .size(64.dp)
-                        .clip(CircleShape)
-                        .background(BgMuted),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.Person, contentDescription = null, tint = Mint, modifier = Modifier.size(34.dp))
-                }
+                ProfileInitial(
+                    name = userProfile.nickname.ifBlank { "사용자" },
+                    size = 64,
+                    imageUrl = userProfile.imageUrl
+                )
                 Spacer(Modifier.width(14.dp))
                 Column {
                     Text(userProfile.nickname, color = TextMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
@@ -1671,7 +1852,7 @@ private fun SettingsContent(
         )
         SettingsEntry(
             title = "앱 설정",
-            subtitle = "알림, 테마 설정",
+            subtitle = "알림, 공개 범위 설정",
             onClick = onAppSettings
         )
     }
@@ -1682,18 +1863,36 @@ private fun SettingsDetailScreen(
     screen: String,
     userProfile: UserProfile,
     onSaveProfile: (String, String) -> Unit,
+    onSaveActivityVisibility: (ActivityVisibility) -> Unit,
+    onUploadProfileImage: (android.net.Uri) -> Unit,
     onBack: () -> Unit
 ) {
     var nickname by remember(userProfile.nickname) { mutableStateOf(userProfile.nickname) }
     var bio by remember(userProfile.bio) { mutableStateOf(userProfile.bio) }
     var pushEnabled by remember { mutableStateOf(true) }
-    var darkMode by remember { mutableStateOf(false) }
+    var selectedVisibility by remember(userProfile.activityVisibility) {
+        mutableStateOf(userProfile.activityVisibility)
+    }
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val accountDeletionRepository = remember { AccountDeletionRepository() }
+    var showWithdrawDialog by remember { mutableStateOf(false) }
+    var isWithdrawing by remember { mutableStateOf(false) }
+    var withdrawError by remember { mutableStateOf<String?>(null) }
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            onUploadProfileImage(uri)
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .widthIn(max = 480.dp)
-            .padding(horizontal = 24.dp)
+            .widthIn(max = LocalJanjanAdaptiveMetrics.current.contentMaxWidth)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = LocalJanjanAdaptiveMetrics.current.horizontalPadding)
     ) {
         Row(
             modifier = Modifier
@@ -1716,24 +1915,47 @@ private fun SettingsDetailScreen(
 
         if (screen == "personal") {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                ProfileInitial(name = nickname, size = 92)
-                Text("프로필 사진 변경", color = TextSub, fontSize = 14.sp)
+                if (userProfile.imageUrl.isNotEmpty()) {
+                    coil.compose.AsyncImage(
+                        model = userProfile.imageUrl,
+                        contentDescription = "프로필 사진",
+                        modifier = Modifier
+                            .size(92.dp)
+                            .clip(CircleShape)
+                            .clickable { photoPickerLauncher.launch("image/*") },
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    )
+                } else {
+                    Box(modifier = Modifier.clickable { photoPickerLauncher.launch("image/*") }) {
+                        ProfileInitial(name = nickname, size = 92)
+                    }
+                }
+                Text(
+                    "프로필 사진 변경",
+                    color = TextSub,
+                    fontSize = 14.sp,
+                    modifier = Modifier.clickable { photoPickerLauncher.launch("image/*") }.padding(4.dp)
+                )
                 OutlinedTextField(
                     value = nickname,
                     onValueChange = { nickname = it },
                     label = { Text("닉네임") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = bio,
                     onValueChange = { bio = it },
                     label = { Text("자기소개") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     modifier = Modifier.fillMaxWidth()
                 )
                 SettingsEntry(
                     title = "비밀번호 변경",
                     subtitle = "보안을 위해 주기적으로 변경하세요",
-                    onClick = {}
+                    onClick = {
+                        context.startActivity(Intent(context, ChangePasswordActivity::class.java))
+                    }
                 )
                 Button(
                     onClick = {
@@ -1750,20 +1972,126 @@ private fun SettingsDetailScreen(
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SettingsSwitchRow("알림", "주문과 정산 알림 받기", pushEnabled) { pushEnabled = it }
-                SettingsSwitchRow("다크 모드", "어두운 테마 사용", darkMode) { darkMode = it }
-                SettingsEntry(
-                    title = "언어",
-                    subtitle = "한국어",
-                    onClick = {}
+                ActivityVisibilityCard(
+                    selectedVisibility = selectedVisibility,
+                    onVisibilityChange = { visibility ->
+                        selectedVisibility = visibility
+                        onSaveActivityVisibility(visibility)
+                    }
                 )
-                SettingsEntry(
-                    title = "개인정보 보호",
-                    subtitle = "계정과 활동 공개 범위",
-                    onClick = {}
-                )
+                OutlinedButton(
+                    onClick = {
+                        FirebaseConfig.auth.signOut()
+                        context.navigateToLanding()
+                    },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    border = BorderStroke(1.dp, BorderMint),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("로그아웃", color = TextSub, fontWeight = FontWeight.Bold)
+                }
+                Button(
+                    onClick = {
+                        withdrawError = null
+                        showWithdrawDialog = true
+                    },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ErrorRed.copy(alpha = 0.12f)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("회원탈퇴", color = ErrorRed, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
+
+    if (showWithdrawDialog) {
+        WithdrawPasswordDialog(
+            isWithdrawing = isWithdrawing,
+            errorMessage = withdrawError,
+            onDismiss = {
+                if (!isWithdrawing) {
+                    showWithdrawDialog = false
+                    withdrawError = null
+                }
+            },
+            onConfirm = { password ->
+                coroutineScope.launch {
+                    isWithdrawing = true
+                    withdrawError = null
+                    runCatching {
+                        val user = FirebaseConfig.auth.currentUser
+                            ?: error("로그인 정보를 확인하지 못했습니다.")
+                        val email = user.email
+                            ?: error("이메일 정보를 확인하지 못했습니다.")
+                        user.reauthenticate(EmailAuthProvider.getCredential(email, password)).await()
+                        accountDeletionRepository.deletePersonalData(user.uid)
+                        user.delete().await()
+                    }.onSuccess {
+                        FirebaseConfig.auth.signOut()
+                        context.navigateToLanding()
+                    }.onFailure { error ->
+                        withdrawError = error.localizedMessage ?: "회원탈퇴에 실패했습니다."
+                    }
+                    isWithdrawing = false
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun WithdrawPasswordDialog(
+    isWithdrawing: Boolean,
+    errorMessage: String?,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var password by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("회원탈퇴") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("탈퇴하면 계정과 개인 데이터가 삭제됩니다. 확인을 위해 현재 비밀번호를 입력해 주세요.")
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("현재 비밀번호") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    enabled = !isWithdrawing,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                errorMessage?.let { message ->
+                    Text(message, color = ErrorRed, fontSize = 12.sp)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(password) },
+                enabled = password.isNotBlank() && !isWithdrawing
+            ) {
+                Text(if (isWithdrawing) "처리 중..." else "탈퇴", color = ErrorRed)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isWithdrawing) {
+                Text("취소", color = TextSub)
+            }
+        }
+    )
+}
+
+private fun Context.navigateToLanding() {
+    startActivity(
+        Intent(this, LandingActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+    )
 }
 
 @Composable
@@ -1819,6 +2147,72 @@ private fun SettingsSwitchRow(
                 Text(subtitle, color = TextDim, fontSize = 13.sp)
             }
             Switch(checked = checked, onCheckedChange = onCheckedChange)
+        }
+    }
+}
+
+@Composable
+private fun ActivityVisibilityCard(
+    selectedVisibility: ActivityVisibility,
+    onVisibilityChange: (ActivityVisibility) -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = BgLight),
+        border = BorderStroke(1.dp, BorderMint),
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("개인정보 보호", color = TextMain, fontWeight = FontWeight.Bold)
+            Text("활동 공개 범위", color = TextDim, fontSize = 13.sp)
+            Spacer(Modifier.height(12.dp))
+            ActivityVisibility.entries.forEachIndexed { index, visibility ->
+                ActivityVisibilityOptionRow(
+                    visibility = visibility,
+                    selected = selectedVisibility == visibility,
+                    onClick = { onVisibilityChange(visibility) }
+                )
+                if (index != ActivityVisibility.entries.lastIndex) {
+                    HorizontalDivider(color = BorderMint.copy(alpha = 0.45f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActivityVisibilityOptionRow(
+    visibility: ActivityVisibility,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(visibility.label, color = TextMain, fontWeight = FontWeight.SemiBold)
+            Text(visibility.description, color = TextDim, fontSize = 12.sp)
+        }
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(if (selected) Mint else Color.White)
+                .border(1.dp, if (selected) Mint else BorderMint, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            if (selected) {
+                Icon(
+                    Icons.Default.Check,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
         }
     }
 }
@@ -2012,8 +2406,8 @@ private fun HeaderScaffold(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .widthIn(max = 480.dp)
-            .padding(horizontal = 24.dp)
+            .widthIn(max = LocalJanjanAdaptiveMetrics.current.contentMaxWidth)
+            .padding(horizontal = LocalJanjanAdaptiveMetrics.current.horizontalPadding)
     ) {
         Row(
             modifier = Modifier
@@ -2044,7 +2438,7 @@ private fun JanjanBottomBar(tab: String, onTabChange: (String) -> Unit) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .widthIn(max = 480.dp)
+                .widthIn(max = LocalJanjanAdaptiveMetrics.current.contentMaxWidth)
                 .height(76.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
@@ -2171,7 +2565,14 @@ private fun JanjanSurface(content: @Composable () -> Unit) {
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = Color.White,
-            content = { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) { content() } }
+            content = {
+                BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                    val adaptive = remember(maxWidth) { buildJanjanAdaptiveMetrics(maxWidth) }
+                    CompositionLocalProvider(LocalJanjanAdaptiveMetrics provides adaptive) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) { content() }
+                    }
+                }
+            }
         )
     }
 }
@@ -2297,9 +2698,47 @@ private fun DrinkCount(label: String, count: Int) {
 
 @Composable
 private fun StatBox(value: String, label: String, modifier: Modifier = Modifier) {
-    SectionCard(modifier = modifier) {
-        Text(value, color = TextMain, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-        Text(label, color = TextDim, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+    val valueSize = when {
+        value.length >= 10 -> 13.sp
+        value.length >= 8 -> 15.sp
+        value.length >= 6 -> 17.sp
+        else -> 18.sp
+    }
+    Card(
+        colors = CardDefaults.cardColors(containerColor = BgLight),
+        border = BorderStroke(1.dp, BorderMint),
+        shape = RoundedCornerShape(18.dp),
+        modifier = modifier.height(96.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 8.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                value,
+                color = TextMain,
+                fontSize = valueSize,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Clip,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                label,
+                color = TextDim,
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 }
 
@@ -2352,8 +2791,8 @@ private fun RankingPlaceholder() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .widthIn(max = 480.dp)
-            .padding(24.dp),
+            .widthIn(max = LocalJanjanAdaptiveMetrics.current.contentMaxWidth)
+            .padding(LocalJanjanAdaptiveMetrics.current.horizontalPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {

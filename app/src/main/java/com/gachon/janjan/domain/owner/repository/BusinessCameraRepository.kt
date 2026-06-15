@@ -1,5 +1,6 @@
 package com.gachon.janjan.domain.owner.repository
 
+import com.gachon.janjan.TableInviteCodes
 import com.gachon.janjan.domain.owner.model.BusinessTable
 import com.gachon.janjan.domain.owner.model.TableCameraMapping
 import com.gachon.janjan.domain.session.FirebaseConfig
@@ -147,6 +148,9 @@ class BusinessCameraRepository(
         table: BusinessTable
     ): ActiveSessionInfo {
         val tableId = table.tableId.ifBlank { "table_${table.tableNumber}" }
+        val tableRef = db.collection("stores").document(storeId)
+            .collection("tables").document(tableId)
+        val tableInviteCode = tableRef.get().await().getString("inviteCode").orEmpty()
         val existing = db.collection("sessions")
             .whereEqualTo("storeId", storeId)
             .whereEqualTo("tableId", tableId)
@@ -157,9 +161,19 @@ class BusinessCameraRepository(
             .documents
             .firstOrNull()
         if (existing != null) {
+            val sessionInviteCode = tableInviteCode.ifBlank { existing.getString("inviteCode").orEmpty() }
+            if (sessionInviteCode.isNotBlank()) {
+                existing.reference.set(
+                    mapOf(
+                        "inviteCode" to sessionInviteCode,
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    ),
+                    SetOptions.merge()
+                ).await()
+            }
             return ActiveSessionInfo(
                 sessionId = existing.getString("sessionId").orEmpty().ifBlank { existing.id },
-                inviteCode = existing.getString("inviteCode").orEmpty()
+                inviteCode = sessionInviteCode
             )
         }
 
@@ -167,7 +181,7 @@ class BusinessCameraRepository(
             ?: tableId.filter { it.isDigit() }.toIntOrNull()
             ?: 0
         val sessionRef = db.collection("sessions").document()
-        val inviteCode = buildInviteCode(tableNumber)
+        val inviteCode = tableInviteCode.ifBlank { TableInviteCodes.generate() }
         sessionRef.set(
             mapOf(
                 "sessionId" to sessionRef.id,
@@ -179,12 +193,16 @@ class BusinessCameraRepository(
                 "status" to "active",
                 "startedAt" to FieldValue.serverTimestamp(),
                 "endedAt" to null,
+                "participantCount" to 0,
                 "totalSojuPrice" to 0,
                 "totalBeerPrice" to 0,
                 "totalFoodPrice" to 0,
                 "totalPrice" to 0,
                 "totalSojuDrinkCount" to 0,
-                "totalBeerDrinkCount" to 0
+                "totalBeerDrinkCount" to 0,
+                "orderCount" to 0,
+                "lastOrderAt" to null,
+                "updatedAt" to FieldValue.serverTimestamp()
             )
         ).await()
         return ActiveSessionInfo(sessionId = sessionRef.id, inviteCode = inviteCode)
@@ -196,7 +214,7 @@ class BusinessCameraRepository(
     )
 
     private fun defaultTables(storeId: String, storeName: String): List<BusinessTable> =
-        (1..9).map { number ->
+        (1..3).map { number ->
             BusinessTable(
                 tableId = "table_$number",
                 tableNumber = number,

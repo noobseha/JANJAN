@@ -2,13 +2,17 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fillViewport="true"
     android:background="#FFFFFF">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="32dp">
+        android:paddingStart="@dimen/screen_horizontal_padding"
+        android:paddingTop="@dimen/screen_vertical_padding"
+        android:paddingEnd="@dimen/screen_horizontal_padding"
+        android:paddingBottom="@dimen/screen_vertical_padding">
 
         <TextView
             android:layout_width="wrap_content"
@@ -22,7 +26,7 @@
         <EditText
             android:id="@+id/etEmail"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
+            android:layout_height="@dimen/form_field_height"
             android:hint="이메일"
             android:inputType="textEmailAddress"
             android:background="@drawable/edit_text_bg"
@@ -32,7 +36,7 @@
         <EditText
             android:id="@+id/etPassword"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
+            android:layout_height="@dimen/form_field_height"
             android:hint="비밀번호"
             android:inputType="textPassword"
             android:background="@drawable/edit_text_bg"
@@ -42,7 +46,7 @@
         <Button
             android:id="@+id/btnStoreName"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
+            android:layout_height="@dimen/form_field_height"
             android:text="가게 검색"
             android:textSize="16sp"
             android:backgroundTint="#E0E0E0"
@@ -52,7 +56,7 @@
         <EditText
             android:id="@+id/etSelectedStoreName"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
+            android:layout_height="@dimen/form_field_height"
             android:hint="가게 이름"
             android:background="@drawable/edit_text_bg"
             android:paddingHorizontal="16dp"
@@ -63,7 +67,7 @@
         <EditText
             android:id="@+id/etStorePhone"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
+            android:layout_height="@dimen/form_field_height"
             android:hint="가게 전화번호"
             android:background="@drawable/edit_text_bg"
             android:paddingHorizontal="16dp"
@@ -74,7 +78,7 @@
         <EditText
             android:id="@+id/etStoreAddress"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
+            android:layout_height="@dimen/form_field_height"
             android:hint="가게 주소"
             android:background="@drawable/edit_text_bg"
             android:paddingHorizontal="16dp"
@@ -85,7 +89,7 @@
         <Button
             android:id="@+id/btnRegister"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
+            android:layout_height="@dimen/form_field_height"
             android:text="가입하기"
             android:textSize="16sp"
             android:backgroundTint="#4ECBAC"/>

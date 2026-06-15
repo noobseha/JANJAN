@@ -7,10 +7,15 @@ import android.view.View
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.gachon.janjan.R
 import com.gachon.janjan.data.model.Settlement
+import com.gachon.janjan.data.repository.PaymentRepository
 import com.gachon.janjan.databinding.FragmentSettlementBinding
+import com.gachon.janjan.domain.session.viewmodel.SessionViewModel
+import kotlinx.coroutines.launch
 import java.text.DecimalFormat
 
 class SettlementFragment : Fragment(R.layout.fragment_settlement) {
@@ -19,6 +24,7 @@ class SettlementFragment : Fragment(R.layout.fragment_settlement) {
     private val binding get() = _binding!!
     
     private val viewModel: SettlementViewModel by viewModels()
+    private val sessionViewModel: SessionViewModel by activityViewModels()
     private var settlementId: String? = null
     private val currentUserId: String
         get() = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "anonymous"
@@ -51,26 +57,31 @@ class SettlementFragment : Fragment(R.layout.fragment_settlement) {
         binding.btnSettlement.setOnClickListener {
             val settlement = viewModel.settlementData.value ?: return@setOnClickListener
             val me = settlement.participants.find { it.userId == currentUserId } ?: return@setOnClickListener
-            val currentStoreName = binding.tvStoreAndTable.text.toString()
             val priceText = binding.tvMyPrice.text.toString()
             val myPrice = priceText.replace("[^0-9]".toRegex(), "").toIntOrNull() ?: 0
 
-            // 2. 팝업창 생성 및 띄우기
-            val dialog = PaymentMethod(price = myPrice) { selectedPayMethod ->
-                // 팝업창에서 결제 수단을 선택하면 실행될 로직
-                if (selectedPayMethod == "토스페이") {
-                    try {
-                        // 1. URL 뒤에 파라미터(?이름=값&이름=값) 형태로 데이터 포장하기
-                        val uriString = "mocktoss://pay?storeName=${settlement.storeName}&amount=${myPrice}"
-
-                        // 2. 안드로이드 시스템에 "이 주소 열어줄 앱(토스) 찾아줘!" 라고 택배 던지기
-                        val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(uriString))
-                        startActivity(intent)
-
-                    } catch (e: Exception) {
-                        // 🌟 예외 처리: 에뮬레이터나 폰에 tosspay 앱이 설치되어 있지 않을 때
-                        Toast.makeText(requireContext(), "토스 앱이 설치되어 있지 않습니다.", Toast.LENGTH_SHORT).show()
-                    }
+            val dialog = PaymentMethod(price = myPrice, storeName = settlement.storeName) { selectedPayMethod ->
+                if (selectedPayMethod in listOf("토스페이", "네이버페이", "카카오페이", "직접 결제", "카드 결제")) {
+                    val isDirectPayment = selectedPayMethod == PaymentRepository.DIRECT_PAYMENT_METHOD
+                    android.app.AlertDialog.Builder(requireContext())
+                        .setTitle("결제 완료!")
+                        .setMessage(
+                            if (isDirectPayment) {
+                                "${myPrice}원이 직접 결제로 요청되었습니다.\n사장님의 승인을 기다리고 있습니다."
+                            } else {
+                                "${myPrice}원이 결제되었습니다.\n내 결제 상태를 저장합니다."
+                            }
+                        )
+                        .setPositiveButton("확인") { _, _ ->
+                            sessionViewModel.completeSettlement(settlement.sessionId, selectedPayMethod) { success ->
+                                if (success) {
+                                    findNavController().popBackStack(R.id.sessionHomeFragment, false)
+                                } else {
+                                    Toast.makeText(requireContext(), "결제 상태 저장에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                        .show()
                 }
             }
             dialog.show(parentFragmentManager, "PaymentMethodDialog")
@@ -81,6 +92,34 @@ class SettlementFragment : Fragment(R.layout.fragment_settlement) {
         viewModel.settlementData.observe(viewLifecycleOwner) { settlement ->
             if (settlement != null) {
                 updateUI(settlement)
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            sessionViewModel.externalPaymentCompleteEvent.collect { method ->
+                val settlement = viewModel.settlementData.value ?: return@collect
+                val me = settlement.participants.find { it.userId == currentUserId } ?: return@collect
+                val isDirectPayment = method == PaymentRepository.DIRECT_PAYMENT_METHOD
+                
+                android.app.AlertDialog.Builder(requireContext())
+                    .setTitle("결제 완료!")
+                    .setMessage(
+                        if (isDirectPayment) {
+                            "${me.mytotal}원이 직접 결제로 요청되었습니다.\n사장님의 승인을 기다리고 있습니다."
+                        } else {
+                            "${me.mytotal}원이 결제되었습니다.\n내 결제 상태를 저장합니다."
+                        }
+                    )
+                    .setPositiveButton("확인") { _, _ ->
+                        sessionViewModel.completeSettlement(settlement.sessionId, method) { success ->
+                            if (success) {
+                                findNavController().popBackStack(R.id.sessionHomeFragment, false)
+                            } else {
+                                Toast.makeText(requireContext(), "결제 상태 저장에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                    .show()
             }
         }
     }
@@ -142,6 +181,9 @@ class SettlementFragment : Fragment(R.layout.fragment_settlement) {
                 if (user.paidStatus) {
                     statusViews[i].text = "완료"
                     statusViews[i].setTextColor(Color.parseColor("#6ED7BB")) // 초록/민트 계열 색상
+                } else if (user.pendingApproval) {
+                    statusViews[i].text = "승인대기"
+                    statusViews[i].setTextColor(Color.parseColor("#F59E0B"))
                 } else {
                     statusViews[i].text = "미완료"
                     statusViews[i].setTextColor(Color.parseColor("#999999")) // 연한 회색 색상

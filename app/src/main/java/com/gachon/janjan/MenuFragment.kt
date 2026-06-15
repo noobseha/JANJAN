@@ -19,7 +19,7 @@ class MenuFragment : Fragment() {
     private val auth = FirebaseAuth.getInstance()
     private lateinit var adapter: MenuAdapter
     private var allItems = mutableListOf<MenuItem>()
-    private var currentCategory = "전체"
+    private var currentCategory = MenuCategories.ALL
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -53,10 +53,11 @@ class MenuFragment : Fragment() {
             startActivity(Intent(requireContext(), MenuAddActivity::class.java))
         }
 
-        binding.btnAll.setOnClickListener { filterCategory("전체") }
-        binding.btnSoju.setOnClickListener { filterCategory("주류") }
-        binding.btnFood.setOnClickListener { filterCategory("안주") }
-        binding.btnDrink.setOnClickListener { filterCategory("음료") }
+        binding.btnAll.setOnClickListener { filterCategory(MenuCategories.ALL) }
+        binding.btnSoju.setOnClickListener { filterCategory(MenuCategories.SOJU) }
+        binding.btnBeer.setOnClickListener { filterCategory(MenuCategories.BEER) }
+        binding.btnFood.setOnClickListener { filterCategory(MenuCategories.FOOD) }
+        binding.btnDrink.setOnClickListener { filterCategory(MenuCategories.DRINK) }
 
         loadMenus()
     }
@@ -71,40 +72,43 @@ class MenuFragment : Fragment() {
         db.collection("stores").document(uid)
             .collection("menuItems")
             .whereEqualTo("isActive", true)
-            .orderBy("displayOrder")
             .get()
             .addOnSuccessListener { result ->
                 allItems = result.documents.map { doc ->
                     MenuItem(
                         id = doc.id,
+                        menuId = doc.getString("menuId") ?: doc.id,
+                        storeId = doc.getString("storeId") ?: uid,
                         name = doc.getString("name") ?: "",
                         price = (doc.getLong("price") ?: 0).toInt(),
-                        category = doc.getString("category") ?: "",
+                        category = MenuCategories.normalize(doc.getString("category") ?: ""),
                         imageUrl = doc.getString("imageUrl") ?: "",
                         isSoldOut = doc.getBoolean("isSoldOut") ?: false,
                         displayOrder = (doc.getLong("displayOrder") ?: 0).toInt()
                     )
-                }.toMutableList()
+                }.sortedBy { it.displayOrder }.toMutableList()
                 filterCategory(currentCategory)
             }
     }
 
     private fun filterCategory(category: String) {
-        currentCategory = category
-        val filtered = if (category == "전체") allItems
-        else allItems.filter { it.category == category }
+        currentCategory = MenuCategories.normalize(category)
+        val filtered = if (currentCategory == MenuCategories.ALL) allItems
+        else allItems.filter { it.category == currentCategory }
         adapter.updateItems(filtered)
 
         val teal = "#4DB6AC"
         val gray = "#E0E0E0"
         binding.btnAll.backgroundTintList = android.content.res.ColorStateList.valueOf(
-            android.graphics.Color.parseColor(if (category == "전체") teal else gray))
+            android.graphics.Color.parseColor(if (currentCategory == MenuCategories.ALL) teal else gray))
         binding.btnSoju.backgroundTintList = android.content.res.ColorStateList.valueOf(
-            android.graphics.Color.parseColor(if (category == "주류") teal else gray))
+            android.graphics.Color.parseColor(if (currentCategory == MenuCategories.SOJU) teal else gray))
+        binding.btnBeer.backgroundTintList = android.content.res.ColorStateList.valueOf(
+            android.graphics.Color.parseColor(if (currentCategory == MenuCategories.BEER) teal else gray))
         binding.btnFood.backgroundTintList = android.content.res.ColorStateList.valueOf(
-            android.graphics.Color.parseColor(if (category == "안주") teal else gray))
+            android.graphics.Color.parseColor(if (currentCategory == MenuCategories.FOOD) teal else gray))
         binding.btnDrink.backgroundTintList = android.content.res.ColorStateList.valueOf(
-            android.graphics.Color.parseColor(if (category == "음료") teal else gray))
+            android.graphics.Color.parseColor(if (currentCategory == MenuCategories.DRINK) teal else gray))
     }
 
     private fun deleteMenu(item: MenuItem) {

@@ -13,6 +13,7 @@ import com.gachon.janjan.R
 import com.gachon.janjan.domain.session.viewmodel.HistoryHealthViewModel
 import com.gachon.janjan.domain.session.viewmodel.RankingViewModel
 import com.gachon.janjan.domain.session.viewmodel.SessionViewModel
+import com.gachon.janjan.ui.settlement.PaymentMethod
 
 class SessionHomeFragment : Fragment() {
     private val sessionViewModel: SessionViewModel by activityViewModels()
@@ -48,6 +49,15 @@ class SessionHomeFragment : Fragment() {
                             putBoolean("showDone", false)
                         }
                     )
+                },
+                onShowPaymentMethod = { price, storeName, onComplete ->
+                    val dialog = PaymentMethod(
+                        price = price,
+                        storeName = storeName
+                    ) { selectedPay ->
+                        onComplete(selectedPay)
+                    }
+                    dialog.show(childFragmentManager, "PaymentMethod")
                 }
             )
         }

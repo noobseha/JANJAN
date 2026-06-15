@@ -6,7 +6,8 @@ import java.time.LocalDate
 data class DrinkParticipantSummary(
     val name: String,
     val sojuCount: Int,
-    val beerCount: Int
+    val beerCount: Int,
+    val imageUrl: String = ""
 ) {
     val totalCount: Int get() = sojuCount + beerCount
 }
@@ -36,7 +37,8 @@ data class CalendarDrinkDay(
 data class OrderSummaryItem(
     val name: String,
     val quantity: Int,
-    val amount: Int
+    val amount: Int,
+    val category: String = ""
 )
 
 data class HealthSummary(

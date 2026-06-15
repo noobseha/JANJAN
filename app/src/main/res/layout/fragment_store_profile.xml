@@ -96,10 +96,25 @@
         <Button
             android:id="@+id/btn_logout"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="56dp"
             android:text="로그아웃"
-            android:backgroundTint="#FFE0E0"
-            android:textColor="#FF0000"/>
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:background="@drawable/bg_logout_outline"
+            android:backgroundTint="@null"
+            android:textColor="#6B7280"
+            android:layout_marginBottom="12dp"/>
+
+        <Button
+            android:id="@+id/btn_withdraw"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="회원탈퇴"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:background="@drawable/bg_withdraw_button"
+            android:backgroundTint="@null"
+            android:textColor="#EF4444"/>
 
     </LinearLayout>
 </ScrollView>

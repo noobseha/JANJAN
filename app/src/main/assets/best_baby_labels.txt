@@ -1,0 +1,4 @@
+beer
+beerglass
+soju
+sojuglass

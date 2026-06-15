@@ -1,7 +1,7 @@
 package com.gachon.janjan.data.model
 
 data class OrderItem(
-    val menuItemId: Long = 0L,       // 메뉴 고유 ID
+    val menuItemId: String = "",     // 메뉴 고유 ID
     val itemName: String = "",       // 메뉴 이름 (예: 김치찌개, 참이슬)
     val category: String = "",       // 카테고리 (food, soju, beer)
     val unitPrice: Int = 0,          // 단가

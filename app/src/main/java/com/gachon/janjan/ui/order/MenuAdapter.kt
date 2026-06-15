@@ -1,6 +1,7 @@
 package com.gachon.janjan.ui.order
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -30,6 +31,11 @@ class MenuAdapter(
                 tvMenuName.text = item.name
                 tvMenuPrice.text = "${item.price}원"
                 tvQuantity.text = item.quantity.toString()
+                tvSoldOut.visibility = if (item.isSoldOut) View.VISIBLE else View.GONE
+                btnPlus.isEnabled = !item.isSoldOut
+                btnMinus.isEnabled = !item.isSoldOut && item.quantity > 0
+                btnPlus.alpha = if (item.isSoldOut) 0.35f else 1f
+                btnMinus.alpha = if (item.isSoldOut || item.quantity == 0) 0.35f else 1f
 
                 Glide.with(ivMenu.context)
                     .load(item.imageUrl)

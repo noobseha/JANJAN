@@ -48,6 +48,22 @@
             app:layout_constraintStart_toStartOf="@id/tvMenuName"
             app:layout_constraintTop_toBottomOf="@id/tvMenuName" />
 
+        <TextView
+            android:id="@+id/tvSoldOut"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:background="#FFE5E5"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="3dp"
+            android:text="품절"
+            android:textColor="#D32F2F"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="@id/tvMenuName"
+            app:layout_constraintTop_toBottomOf="@id/tvMenuPrice" />
+
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

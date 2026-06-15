@@ -15,8 +15,14 @@ data class TableCameraMapping(
     val cameraStreamUrl: String = "",
     val cameraStatus: String = "idle",
     val cameraEnabled: Boolean = false,
+    val cameraSource: String = "",
+    val assignedSessionId: String = "",
+    val lastSeenAt: Timestamp? = null,
     val updatedAt: Timestamp? = null
 ) {
     val isActive: Boolean
-        get() = cameraEnabled && cameraIp.isNotBlank()
+        get() = cameraEnabled && (cameraDeviceId.isNotBlank() || cameraIp.isNotBlank())
+
+    val effectiveSessionId: String
+        get() = assignedSessionId.ifBlank { sessionId }
 }

@@ -25,13 +25,16 @@ class InviteCodeFragment : Fragment() {
             InviteCodeScreen(
                 sessionViewModel = sessionViewModel,
                 onBack = { findNavController().popBackStack() },
-                onOrderReady = { sessionId ->
-                    findNavController().navigate(
-                        R.id.orderFragment,
-                        Bundle().apply { putString("sessionId", sessionId) }
-                    )
-                }
+                onSessionJoined = { returnToSessionHome() }
             )
+        }
+    }
+
+    private fun returnToSessionHome() {
+        val navController = findNavController()
+        val returnedHome = navController.popBackStack(R.id.sessionHomeFragment, false)
+        if (!returnedHome) {
+            navController.navigate(R.id.sessionHomeFragment)
         }
     }
 }

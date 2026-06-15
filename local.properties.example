@@ -1,0 +1,4 @@
+# Copy values from this file into local.properties.
+# local.properties is gitignored and should stay local to each developer machine.
+
+KAKAO_REST_API_KEY=your_kakao_rest_api_key
